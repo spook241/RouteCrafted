@@ -49,13 +49,18 @@ async function main() {
     .where(eq(users.email, email))
     .limit(1);
 
+  const passwordHash = await bcrypt.hash(safePassword, 12);
+
   if (existing.length > 0) {
-    console.log(`ℹ️  User ${email} already exists — skipping insert.`);
-    console.log("   To reset the password, use the profile page or re-run with a different email.");
+    await db
+      .update(users)
+      .set({ passwordHash, name, role: "admin" })
+      .where(eq(users.email, email));
+    console.log(`✅  Admin user updated (password synced from env):`);
+    console.log(`    Email : ${email}`);
+    console.log("\n   Login at /login");
     process.exit(0);
   }
-
-  const passwordHash = await bcrypt.hash(safePassword, 12);
 
   const [created] = await db
     .insert(users)
