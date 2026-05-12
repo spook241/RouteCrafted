@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
+import { S3Client, HeadBucketCommand } from "@aws-sdk/client-s3";
 import OpenAI from "openai";
 import { getActivePrompt, getAllSettings } from "@/lib/db/ai-config";
 import { generateJSON } from "@/lib/ai/openrouter";
@@ -67,8 +67,9 @@ async function testR2(): Promise<ServiceResult> {
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
       },
     });
-    await client.send(new ListBucketsCommand({}));
-    return { ok: true, latencyMs: Date.now() - t, detail: `bucket: ${process.env.R2_BUCKET_NAME}` };
+    // HeadBucket works with bucket-scoped tokens; ListBuckets requires account-level permission
+    await client.send(new HeadBucketCommand({ Bucket: process.env.R2_BUCKET_NAME! }));
+    return { ok: true, latencyMs: Date.now() - t, detail: `bucket "${process.env.R2_BUCKET_NAME}" reachable · account: ${process.env.R2_ACCOUNT_ID}` };
   } catch (e) {
     return { ok: false, latencyMs: Date.now() - t, detail: String(e) };
   }
@@ -77,14 +78,28 @@ async function testR2(): Promise<ServiceResult> {
 async function testResend(): Promise<ServiceResult> {
   const t = Date.now();
   try {
-    if (!process.env.RESEND_API_KEY) {
-      return { ok: false, latencyMs: 0, detail: "RESEND_API_KEY not set" };
+    const key = process.env.RESEND_API_KEY;
+    if (!key) {
+      return { ok: false, latencyMs: 0, detail: "RESEND_API_KEY not set in environment" };
     }
+    const keyHint = `key starts with: ${key.slice(0, 10)}…`;
     const res = await fetch("https://api.resend.com/domains", {
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+      headers: { Authorization: `Bearer ${key}` },
     });
-    if (!res.ok) return { ok: false, latencyMs: Date.now() - t, detail: `HTTP ${res.status}` };
-    return { ok: true, latencyMs: Date.now() - t };
+    if (!res.ok) {
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const body = (await res.json()) as { message?: string; name?: string };
+        if (body.message) errMsg += ` — ${body.message}`;
+        else if (body.name) errMsg += ` — ${body.name}`;
+      } catch { /* ignore parse error */ }
+      return {
+        ok: false,
+        latencyMs: Date.now() - t,
+        detail: `${errMsg} · ${keyHint}${res.status === 401 ? " · API key is invalid or revoked — get a new one at resend.com/api-keys" : ""}`,
+      };
+    }
+    return { ok: true, latencyMs: Date.now() - t, detail: keyHint };
   } catch (e) {
     return { ok: false, latencyMs: Date.now() - t, detail: String(e) };
   }

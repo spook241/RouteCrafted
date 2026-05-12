@@ -171,10 +171,16 @@ export default async function DayPage({ params }: Props) {
                           </div>
                         </div>
                         <h3 className="font-headline font-bold text-on-surface text-lg mb-1">{item.title}</h3>
-                        <div className="flex items-center gap-1.5 text-xs text-on-surface-variant mb-3">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location + (trip.destination ? `, ${trip.destination}` : ""))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 hover:underline mb-3 transition-colors"
+                        >
                           <span className="material-symbols-outlined text-[14px]">location_on</span>
                           {item.location}
-                        </div>
+                          <span className="material-symbols-outlined text-[12px] opacity-60">open_in_new</span>
+                        </a>
                         <p className="text-sm text-on-surface-variant leading-relaxed">{item.description}</p>
                       </div>
                     ))}

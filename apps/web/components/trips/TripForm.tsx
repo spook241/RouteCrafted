@@ -103,7 +103,7 @@ export function TripForm() {
         <SearchBox
           accessToken={token}
           onRetrieve={handleRetrieve}
-          options={{ language: "en" }}
+          options={{ language: "en", types: "place,locality,district,region,country" }}
           theme={{
             variables: {
               colorBackground: "#f0f3ff",

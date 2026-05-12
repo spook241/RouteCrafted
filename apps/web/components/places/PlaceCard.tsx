@@ -39,9 +39,9 @@ const VERDICT_STYLES: Record<string, { label: string; icon: string; classes: str
 
 const COST_ICONS: Record<string, string> = {
   free: "Free",
-  low: "$",
-  medium: "$$",
-  high: "$$$",
+  low: "€",
+  medium: "€€",
+  high: "€€€",
 };
 
 export function PlaceCard({ card }: { card: PlaceCardData }) {

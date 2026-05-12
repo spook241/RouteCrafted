@@ -30,8 +30,10 @@ export function classifyAlert(
 ): { alertType: AlertType; label: string } | null {
   if (code >= 95)
     return { alertType: "storm", label: `Thunderstorm expected ⛈ — ${wmoLabel(code)}` };
-  if (code >= 71 && code <= 86)
+  // WMO snow codes: 71-77 (snow fall) and 85-86 (snow showers)
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86)
     return { alertType: "snow", label: `Snow expected ❄ — ${wmoLabel(code)}` };
+  // WMO rain codes: 61-67 (rain) and 80-82 (rain showers)
   if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82))
     return { alertType: "rain", label: `Rain expected 🌧 — ${wmoLabel(code)}` };
   if (maxTempC > 38)
