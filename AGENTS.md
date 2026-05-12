@@ -1,3 +1,4 @@
+@ -1,181 +0,0 @@
 # AGENTS.md — RouteCrafted
 
 _AI coding agent instructions. Read before making any changes._

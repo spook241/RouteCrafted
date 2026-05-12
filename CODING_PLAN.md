@@ -1,3 +1,4 @@
+@ -1,548 +0,0 @@
 # CODING_PLAN.md — RouteCrafted
 
 _Full technical reference for building RouteCrafted. Quick agent guidance is in **[AGENTS.md](./AGENTS.md)**._
