@@ -31,6 +31,14 @@ export async function Header() {
             >
               Explore
             </Link>
+            {session.user?.role === 'admin' && (
+              <Link
+                href="/admin"
+                className="px-4 py-2 rounded-full text-sm font-semibold text-primary hover:bg-primary/10 transition-colors"
+              >
+                Admin
+              </Link>
+            )}
           </nav>
         )}
 

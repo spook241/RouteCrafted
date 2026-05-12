@@ -102,6 +102,18 @@ export default async function AdminPage() {
               {Number(totalTrips.value)} trips · {Number(totalCards.value)} place cards across {Number(totalUsers.value)} users.
             </p>
           </div>
+
+          <Link href="/admin/diagnostics" className="group block">
+            <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-card hover:shadow-card-hover transition-shadow">
+              <span className="material-symbols-outlined text-primary text-[32px] mb-3 block" style={{ fontVariationSettings: "'FILL' 1" }}>monitor_heart</span>
+              <h2 className="font-headline font-bold text-on-surface text-lg group-hover:text-primary transition-colors">
+                Diagnostics
+              </h2>
+              <p className="text-on-surface-variant text-sm mt-1">
+                Test all external integrations — database, AI, storage, email, weather, and maps.
+              </p>
+            </div>
+          </Link>
         </div>
       </div>
     </div>
