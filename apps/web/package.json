@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "npx tsx scripts/seed-admin.ts && next build",
+    "seed": "npx tsx scripts/seed-admin.ts",
     "start": "next start",
     "lint": "next lint",
     "snyk:scan": "snyk test --all-projects",

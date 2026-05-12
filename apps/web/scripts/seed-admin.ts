@@ -15,7 +15,7 @@ import bcrypt from "bcryptjs";
 import * as dotenv from "dotenv";
 import { resolve } from "path";
 
-// Load .env.local from apps/web/
+// Load .env.local when running locally (no-op on Vercel where env vars are injected)
 dotenv.config({ path: resolve(__dirname, "../.env.local") });
 
 import { users } from "../lib/db/schema";
