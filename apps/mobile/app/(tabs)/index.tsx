@@ -21,10 +21,6 @@ interface Trip {
   createdAt: string;
 }
 
-interface TripsResponse {
-  trips: Trip[];
-}
-
 export default function TripsScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,8 +30,8 @@ export default function TripsScreen() {
   async function loadTrips() {
     try {
       setError(null);
-      const data = await apiFetch<TripsResponse>("/api/mobile/trips");
-      setTrips(data.trips);
+      const data = await apiFetch<Trip[]>("/api/mobile/trips");
+      setTrips(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load trips");
     } finally {

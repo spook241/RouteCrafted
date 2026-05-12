@@ -30,7 +30,11 @@
         "R2_PUBLIC_URL",
         "RESEND_API_KEY",
         "OPENTRIPMAP_KEY",
-        "NEXT_PUBLIC_MAPBOX_TOKEN"
+        "NEXT_PUBLIC_MAPBOX_TOKEN",
+        "ADMIN_EMAIL",
+        "ADMIN_PASSWORD",
+        "ADMIN_NAME",
+        "DISABLE_SIGNUP"
       ]
     }
   }
