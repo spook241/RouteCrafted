@@ -82,6 +82,8 @@ Each item must have:
 - durationMins (positive integer)
 - estimatedCost (non-negative number in USD)
 - isOptional (boolean)
+- tips (string or null — one practical insider note, e.g. "Book tickets online to skip the queue", null if nothing special)
+- bookingRequired (boolean — true if pre-booking is typically needed, otherwise false)
 
 Pacing guide: relaxed = 2-3 items/day, moderate = 3-4 items/day, packed = 5-6 items/day.
 Budget guide: budget = under $30/day activities, mid = $30-$100/day, luxury = $100+/day.
@@ -114,6 +116,8 @@ Each item must have:
 - durationMins (positive integer)
 - estimatedCost (non-negative number in USD)
 - isOptional (boolean)
+- tips (string or null — one practical insider note, null if nothing special)
+- bookingRequired (boolean — true if pre-booking is typically needed, otherwise false)
 
 Return ONLY valid JSON.`;
 

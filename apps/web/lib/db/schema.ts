@@ -88,6 +88,8 @@ export const itineraryItems = pgTable("itinerary_items", {
   isOptional: boolean("is_optional").notNull().default(false),
   placeCardId: uuid("place_card_id"), // FK added in Phase 6
   category: text("category"), // e.g. 'museum' | 'restaurant' | 'landmark' etc.
+  tips: text("tips"), // AI-generated practical insider note (nullable)
+  bookingRequired: boolean("booking_required").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -193,6 +195,26 @@ export const aiSettings = pgTable("ai_settings", {
   description: text("description").notNull().default(""),
   updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── ai_telemetry ───────────────────────────────────────────────────────────────
+
+export const aiTelemetry = pgTable("ai_telemetry", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  callType: text("call_type"), // 'generate_itinerary' | 'rewrite_day' | 'place_card'
+  model: text("model"),
+  tripId: uuid("trip_id").references(() => trips.id, { onDelete: "set null" }),
+  dayId: uuid("day_id").references(() => itineraryDays.id, { onDelete: "set null" }),
+  itemId: uuid("item_id").references(() => itineraryItems.id, { onDelete: "set null" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  promptTokens: integer("prompt_tokens"),
+  completionTokens: integer("completion_tokens"),
+  totalTokens: integer("total_tokens"),
+  estimatedCostUsd: numeric("estimated_cost_usd", { precision: 10, scale: 6 }),
+  latencyMs: integer("latency_ms"),
+  success: boolean("success").notNull().default(true),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // ─── admin_flags ──────────────────────────────────────────────────────────────

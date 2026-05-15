@@ -29,6 +29,16 @@ const BLOCK_ICONS: Record<string, string> = {
 
 const BLOCK_ORDER = ["morning", "afternoon", "evening"] as const;
 
+const PRICE_SYMBOLS: Record<number, string> = { 1: "€", 2: "€€", 3: "€€€", 4: "€€€€" };
+
+/** Find today's opening hours entry from the array, e.g. "Mon 09:00-18:00" */
+function getTodayHours(openingHours: string[] | null, tripDate: string): string | null {
+  if (!openingHours || openingHours.length === 0) return null;
+  const dayAbbr = new Date(tripDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+  const match = openingHours.find((h) => h.startsWith(dayAbbr));
+  return match ?? openingHours[0];
+}
+
 function formatDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
     weekday: "long",
@@ -155,11 +165,30 @@ export default async function DayPage({ params }: Props) {
                     <span className="text-xs text-on-surface-variant font-label ml-1">{blockItems.length} stop{blockItems.length !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="space-y-4 pl-4 border-l-2 border-surface-container-high">
-                    {blockItems.map((item) => (
+                    {blockItems.map((item) => {
+                      const card = item.placeCardId ? cardMap.get(item.placeCardId) : undefined;
+                      const todayHours = card ? getTodayHours(card.openingHours ?? null, day.date) : null;
+                      return (
                       <div
                         key={item.id}
-                        className="bg-surface-container-lowest rounded-3xl p-6 shadow-card -ml-4 hover:shadow-card-hover transition-shadow"
+                        className="bg-surface-container-lowest rounded-3xl shadow-card -ml-4 hover:shadow-card-hover transition-shadow overflow-hidden"
                       >
+                        {/* Photo header */}
+                        {card?.imageUrl && (
+                          <div className="relative h-36 w-full">
+                            <img
+                              src={card.imageUrl}
+                              alt={item.title}
+                              className="w-full h-full object-cover"
+                            />
+                            {card.imageAttribution && (
+                              <p className="absolute bottom-0 right-0 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-tl">
+                                {card.imageAttribution}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <div className="p-6">
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-label font-semibold px-3 py-1 rounded-full flex items-center gap-1 ${TYPE_STYLES[item.type] ?? TYPE_STYLES.activity}`}>
@@ -171,6 +200,32 @@ export default async function DayPage({ params }: Props) {
                             {item.isOptional && (
                               <span className="text-xs font-label italic text-on-surface-variant">optional</span>
                             )}
+                            {item.bookingRequired && (
+                              <span className="text-xs font-label font-semibold px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-700 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[11px]">bookmark</span>
+                                Book ahead
+                              </span>
+                            )}
+                            {/* Rating badge */}
+                            {card?.rating != null && (
+                              <span className="text-xs font-label font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[11px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                                {Number(card.rating).toFixed(1)}
+                                {card.reviewCount != null && (
+                                  <span className="font-normal opacity-70">({card.reviewCount.toLocaleString()})</span>
+                                )}
+                              </span>
+                            )}
+                            {/* Price level */}
+                            {card?.priceLevel != null ? (
+                              <span className="text-xs font-label font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">
+                                {PRICE_SYMBOLS[card.priceLevel] ?? "€"}
+                              </span>
+                            ) : card?.costLevel && card.costLevel !== "free" ? (
+                              <span className="text-xs font-label px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant capitalize">
+                                {card.costLevel}
+                              </span>
+                            ) : null}
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-xs font-label text-on-surface-variant">{item.durationMins} min</p>
@@ -184,20 +239,36 @@ export default async function DayPage({ params }: Props) {
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location + (trip.destination ? `, ${trip.destination}` : ""))}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 hover:underline mb-3 transition-colors"
+                          className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 hover:underline mb-1 transition-colors"
                         >
                           <span className="material-symbols-outlined text-[14px]">location_on</span>
                           {item.location}
                           <span className="material-symbols-outlined text-[12px] opacity-60">open_in_new</span>
                         </a>
+                        {/* Opening hours */}
+                        {todayHours && (
+                          <p className="inline-flex items-center gap-1 text-xs text-on-surface-variant mb-3 ml-0">
+                            <span className="material-symbols-outlined text-[13px]">schedule</span>
+                            {todayHours}
+                          </p>
+                        )}
+                        {!todayHours && <div className="mb-3" />}
                         <p className="text-sm text-on-surface-variant leading-relaxed">{item.description}</p>
-                        {item.placeCardId && cardMap.get(item.placeCardId) && (
+                        {item.tips && (
+                          <p className="mt-2 text-xs italic text-on-surface-variant flex items-start gap-1.5">
+                            <span className="material-symbols-outlined text-[13px] shrink-0 mt-0.5">tips_and_updates</span>
+                            {item.tips}
+                          </p>
+                        )}
+                        {item.placeCardId && card && card.verdict === "worth_it" && (
                           <div className="mt-3">
-                            <PlaceCardTrigger card={cardMap.get(item.placeCardId)!} />
+                            <PlaceCardTrigger card={card} />
                           </div>
                         )}
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );

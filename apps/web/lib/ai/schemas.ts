@@ -10,6 +10,8 @@ export const itineraryItemSchema = z.object({
   durationMins: z.number().int().positive(),
   estimatedCost: z.number().nonnegative(),
   isOptional: z.boolean().default(false),
+  tips: z.string().nullable().optional(),
+  bookingRequired: z.boolean().optional().default(false),
 });
 
 export const itineraryDaySchema = z.object({

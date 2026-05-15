@@ -36,6 +36,20 @@
       "when": 1778838539538,
       "tag": "0004_nervous_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778847674679,
+      "tag": "0005_freezing_expediter",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778854142973,
+      "tag": "0006_graceful_wendigo",
+      "breakpoints": true
     }
   ]
 }

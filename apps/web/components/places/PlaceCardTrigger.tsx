@@ -23,7 +23,7 @@ interface PlaceCardTriggerData {
 }
 
 const VERDICT_BADGE: Record<string, { label: string; classes: string }> = {
-  worth_it: { label: "Worth It ✓", classes: "bg-secondary/15 text-secondary border border-secondary/30" },
+  worth_it: { label: "Details", classes: "bg-secondary/15 text-secondary border border-secondary/30" },
   skip_it: { label: "Skip It ✗", classes: "bg-error/10 text-error border border-error/30" },
   depends: { label: "Depends?", classes: "bg-tertiary-fixed/15 text-on-tertiary-fixed border border-tertiary-fixed/30" },
 };

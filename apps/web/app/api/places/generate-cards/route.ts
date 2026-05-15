@@ -53,8 +53,7 @@ export async function POST(req: Request) {
     .where(inArray(itineraryItems.dayId, dayIds));
 
   const candidates = allItems
-    .filter((item) => item.type === "activity")
-    .slice(0, MAX_CARDS);
+    .filter((item) => item.type === "activity");
 
   if (candidates.length === 0) {
     return NextResponse.json({ generated: 0, cards: [] });
@@ -77,6 +76,7 @@ export async function POST(req: Request) {
   const generated: Awaited<ReturnType<typeof insertPlaceCard>>[] = [];
 
   for (const item of candidates) {
+    if (generated.length >= MAX_CARDS) break;
     const payload = await buildCardPayload(
       { id: item.id, title: item.title, category: item.category, location: item.location },
       {
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       model,
     );
 
-    if (!payload) continue;
+    if (!payload || payload.verdict !== "worth_it") continue;
 
     try {
       const card = await insertPlaceCard({ ...payload, tripId });
