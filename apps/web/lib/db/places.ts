@@ -1,6 +1,6 @@
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { placeCards, adminFlags, trips, itineraryItems } from "@/lib/db/schema";
+import { placeCards, adminFlags, trips, itineraryItems, placeEnrichmentCache } from "@/lib/db/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +18,37 @@ export type PlaceCardInsert = {
   lat?: string | null;
   long?: string | null;
   imageUrl?: string | null;
+  // enrichment fields (Phase 1)
+  rating?: string | null;
+  reviewCount?: number | null;
+  priceLevel?: number | null;
+  openingHours?: string[] | null;
+  imageSource?: string | null;
+  imageAttribution?: string | null;
+  imageIsExact?: boolean;
+  enrichmentConfidence?: string | null;
+  externalSource?: string | null;
+  externalPlaceId?: string | null;
+  enrichedAt?: Date | null;
+};
+
+export type EnrichmentCacheInsert = {
+  placeNameNormalized: string;
+  destination: string;
+  category?: string | null;
+  provider: string;
+  providerId?: string | null;
+  lat?: string | null;
+  lon?: string | null;
+  rating?: string | null;
+  reviewCount?: number | null;
+  priceLevel?: number | null;
+  imageUrl?: string | null;
+  imageAttribution?: string | null;
+  imageSource?: string | null;
+  imageIsExact?: boolean;
+  rawPayload?: unknown;
+  expiresAt: Date;
 };
 
 // ─── Place Cards ──────────────────────────────────────────────────────────────
@@ -134,5 +165,35 @@ export async function deletePlaceCard(id: string) {
     .where(eq(placeCards.id, id))
     .returning();
   return rows[0] ?? null;
+}
+
+// ─── Enrichment Cache ─────────────────────────────────────────────────────────
+
+export async function getCachedEnrichment(
+  placeNameNormalized: string,
+  destination: string,
+  category: string | null | undefined,
+) {
+  const now = new Date();
+  const rows = await db
+    .select()
+    .from(placeEnrichmentCache)
+    .where(
+      and(
+        eq(placeEnrichmentCache.placeNameNormalized, placeNameNormalized),
+        eq(placeEnrichmentCache.destination, destination),
+        gt(placeEnrichmentCache.expiresAt, now),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function insertEnrichmentCache(data: EnrichmentCacheInsert) {
+  const rows = await db
+    .insert(placeEnrichmentCache)
+    .values(data)
+    .returning();
+  return rows[0];
 }
 

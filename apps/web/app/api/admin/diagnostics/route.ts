@@ -8,6 +8,9 @@ import { getActivePrompt, getAllSettings } from "@/lib/db/ai-config";
 import { generateJSON } from "@/lib/ai/openrouter";
 import { interpolate } from "@/lib/ai/interpolate";
 import { itineraryResponseSchema } from "@/lib/ai/schemas";
+import { searchGeoapify } from "@/lib/places/geoapify";
+import { searchWikimedia } from "@/lib/places/wikimedia";
+import { searchPexels } from "@/lib/places/pexels";
 
 export const dynamic = "force-dynamic";
 
@@ -119,18 +122,100 @@ async function testOpenMeteo(): Promise<ServiceResult> {
   }
 }
 
-async function testOpenTripMap(): Promise<ServiceResult> {
+// ─── Geoapify ─────────────────────────────────────────────────────────────────
+
+async function testGeoapify(): Promise<ServiceResult> {
+  const t = Date.now();
+  const key = process.env.GEOAPIFY_API_KEY?.trim();
+  if (!key) return { ok: false, latencyMs: 0, detail: "GEOAPIFY_API_KEY not set" };
+  try {
+    // Test with Eiffel Tower — well-known landmark
+    const result = await searchGeoapify("Eiffel Tower", 48.8584, 2.2945, "landmark");
+    if (!result) return { ok: false, latencyMs: Date.now() - t, detail: "No result returned (key may be wrong or quota exceeded)" };
+    return {
+      ok: true,
+      latencyMs: Date.now() - t,
+      detail: `key …${key.slice(-4)} · place_id: ${result.providerId?.slice(0, 20) ?? "n/a"} · category: ${result.category ?? "n/a"}`,
+    };
+  } catch (e) {
+    return { ok: false, latencyMs: Date.now() - t, detail: String(e) };
+  }
+}
+
+// ─── Wikimedia ───────────────────────────────────────────────────────────────
+
+async function testWikimedia(): Promise<ServiceResult> {
   const t = Date.now();
   try {
-    if (!process.env.OPENTRIPMAP_KEY) {
-      return { ok: false, latencyMs: 0, detail: "OPENTRIPMAP_KEY not set" };
+    // No API key required — just test the public API
+    const result = await searchWikimedia("Eiffel Tower", "Paris", "landmark");
+    if (!result?.imageUrl) return { ok: false, latencyMs: Date.now() - t, detail: "No image found for Eiffel Tower" };
+    return {
+      ok: true,
+      latencyMs: Date.now() - t,
+      detail: `No key required · imageUrl: ${result.imageUrl.slice(0, 60)}…`,
+    };
+  } catch (e) {
+    return { ok: false, latencyMs: Date.now() - t, detail: String(e) };
+  }
+}
+
+// ─── Pexels ──────────────────────────────────────────────────────────────────
+
+async function testPexels(): Promise<ServiceResult> {
+  const t = Date.now();
+  const key = process.env.PEXELS_API_KEY?.trim();
+  if (!key) return { ok: false, latencyMs: 0, detail: "PEXELS_API_KEY not set" };
+  try {
+    const result = await searchPexels("Eiffel Tower", "Paris", "landmark");
+    if (!result?.imageUrl) return { ok: false, latencyMs: Date.now() - t, detail: "No photo returned (key may be wrong or quota exceeded)" };
+    return {
+      ok: true,
+      latencyMs: Date.now() - t,
+      detail: `key …${key.slice(-4)} · photographer: ${result.imageAttribution ?? "n/a"} · imageUrl: ${result.imageUrl.slice(0, 60)}…`,
+    };
+  } catch (e) {
+    return { ok: false, latencyMs: Date.now() - t, detail: String(e) };
+  }
+}
+
+// ─── Google Places ───────────────────────────────────────────────────────────
+
+async function testGoogle(): Promise<ServiceResult> {
+  const t = Date.now();
+  const enabled = process.env.GOOGLE_PLACES_ENABLED;
+  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  if (!key) return { ok: false, latencyMs: 0, detail: "GOOGLE_PLACES_API_KEY not set" };
+  if (enabled !== "true") {
+    // Key is present but flag is off — report as OK (intentionally disabled)
+    return {
+      ok: true,
+      latencyMs: Date.now() - t,
+      detail: `key …${key.slice(-4)} · GOOGLE_PLACES_ENABLED=false (intentionally disabled — set to true to activate)`,
+    };
+  }
+  try {
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.rating",
+      },
+      body: JSON.stringify({ textQuery: "Café de Flore Paris", maxResultCount: 1 }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { ok: false, latencyMs: Date.now() - t, detail: `HTTP ${res.status} · ${body.slice(0, 120)}` };
     }
-    const res = await fetch(
-      `https://api.opentripmap.com/0.1/en/places/radius?radius=100&lon=2.3522&lat=48.8566&limit=1&apikey=${process.env.OPENTRIPMAP_KEY}`,
-      { signal: AbortSignal.timeout(5000) }
-    );
-    if (!res.ok) return { ok: false, latencyMs: Date.now() - t, detail: `HTTP ${res.status}` };
-    return { ok: true, latencyMs: Date.now() - t };
+    const data = (await res.json()) as { places?: Array<{ id?: string; displayName?: { text?: string }; rating?: number }> };
+    const place = data.places?.[0];
+    return {
+      ok: true,
+      latencyMs: Date.now() - t,
+      detail: `key …${key.slice(-4)} · found: "${place?.displayName?.text ?? "n/a"}" · rating: ${place?.rating ?? "n/a"}`,
+    };
   } catch (e) {
     return { ok: false, latencyMs: Date.now() - t, detail: String(e) };
   }
@@ -303,13 +388,16 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (session.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const [database, openrouter, r2, resend, openmeteo, opentripmap] = await Promise.all([
+  const [database, openrouter, r2, resend, openmeteo, geoapify, wikimedia, pexels, google] = await Promise.all([
     testDatabase(),
     testOpenRouter(),
     testR2(),
     testResend(),
     testOpenMeteo(),
-    testOpenTripMap(),
+    testGeoapify(),
+    testWikimedia(),
+    testPexels(),
+    testGoogle(),
   ]);
 
   const mapbox = testMapbox();
@@ -322,8 +410,13 @@ export async function GET() {
       r2,
       resend,
       openmeteo,
-      opentripmap,
       mapbox,
+      places_enrichment: {
+        geoapify,
+        wikimedia,
+        pexels,
+        google,
+      },
     },
   });
 }

@@ -23,6 +23,21 @@ export function wmoLabel(code: number): string {
   return "Severe weather ⚠";
 }
 
+// WMO weather interpretation codes → single emoji (compact calendar use)
+export function wmoEmoji(code: number): string {
+  if (code === 0) return "☀️";
+  if (code <= 2) return "⛅";
+  if (code === 3) return "🌥";
+  if (code <= 49) return "🌫";
+  if (code <= 57) return "🌦";
+  if (code <= 67) return "🌧";
+  if (code <= 77) return "❄️";
+  if (code <= 82) return "🌧";
+  if (code <= 86) return "🌨";
+  if (code <= 99) return "⛈";
+  return "⚠️";
+}
+
 // Returns an alert if the code/temp is worth warning about, null otherwise
 export function classifyAlert(
   code: number,

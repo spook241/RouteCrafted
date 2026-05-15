@@ -1,4 +1,4 @@
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aiPrompts, aiSettings, users } from "@/lib/db/schema";
 
@@ -34,6 +34,16 @@ export const PROMPT_VARIABLES: Record<string, string[]> = {
     "pacing",
     "weatherContext",
   ],
+  place_card: [
+    "name",
+    "category",
+    "location",
+    "destination",
+    "country",
+    "travelStyle",
+    "groupType",
+    "budgetRange",
+  ],
 };
 
 export const SETTING_VARIABLES: Record<string, string[]> = {
@@ -65,6 +75,7 @@ Return a JSON object with a "days" array. Each day must have:
 Each item must have:
 - timeBlock: one of "morning", "afternoon", "evening"
 - type: one of "activity", "meal", "transport"
+- category: one of "museum", "landmark", "historic", "park", "nature", "restaurant", "cafe", "bar", "bakery", "hotel", "neighborhood", "shopping", "beach", "viewpoint", "activity", "attraction", "transport"
 - title (name of the place or activity)
 - description (2-3 sentences with useful details)
 - location (address or area)
@@ -106,6 +117,26 @@ Each item must have:
 
 Return ONLY valid JSON.`;
 
+const DEFAULT_PLACE_CARD_TEMPLATE = `You are a knowledgeable travel advisor. Evaluate this place/attraction for a traveler.
+
+Place: {{name}}
+Category: {{category}}
+Location: {{location}}, {{destination}}, {{country}}
+Travel style: {{travelStyle}}
+Group type: {{groupType}}
+Budget: {{budgetRange}}
+
+Respond with a JSON object (no markdown):
+{
+  "verdict": "worth_it" | "skip_it" | "depends",
+  "summary": "One punchy sentence about this place",
+  "worthItReasons": ["reason1", "reason2", "reason3"],
+  "skipItReasons": ["reason1", "reason2"],
+  "bestFor": "Short description of who should visit",
+  "costLevel": "free" | "low" | "medium" | "high",
+  "timeNeeded": "e.g. 1\u20132 hours"
+}`;
+
 const DEFAULT_SETTINGS = [
   {
     key: "model",
@@ -129,12 +160,12 @@ const DEFAULT_SETTINGS = [
 // ─── Seed defaults (idempotent) ───────────────────────────────────────────────
 
 export async function seedDefaults() {
-  const [{ total }] = await db
-    .select({ total: count() })
+  const existingPromptRows = await db
+    .select({ key: aiPrompts.promptKey })
     .from(aiPrompts);
-  if (Number(total) > 0) return; // already seeded
+  const seededKeys = new Set(existingPromptRows.map((r) => r.key));
 
-  await db.insert(aiPrompts).values([
+  const DEFAULT_PROMPTS = [
     {
       promptKey: "generate_itinerary",
       version: 1,
@@ -152,7 +183,22 @@ export async function seedDefaults() {
         "Rewrites a single day's itinerary, optionally adapting to weather.",
       template: DEFAULT_REWRITE_TEMPLATE,
     },
-  ]);
+    {
+      promptKey: "place_card",
+      version: 1,
+      isActive: true,
+      name: "Default v1",
+      description: "Generates a Worth It / Skip It card for a single place.",
+      template: DEFAULT_PLACE_CARD_TEMPLATE,
+    },
+  ];
+
+  const toInsertPrompts = DEFAULT_PROMPTS.filter(
+    (p) => !seededKeys.has(p.promptKey),
+  );
+  if (toInsertPrompts.length > 0) {
+    await db.insert(aiPrompts).values(toInsertPrompts);
+  }
 
   const existingSettings = await db.select({ key: aiSettings.key }).from(aiSettings);
   const existingKeys = new Set(existingSettings.map((s) => s.key));

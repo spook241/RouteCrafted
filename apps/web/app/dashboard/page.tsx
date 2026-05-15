@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { getTripsByUser } from "@/lib/db/trips";
+import { getTripsByUser, markExpiredTripsCompleted } from "@/lib/db/trips";
 import { TripCard } from "@/components/trips/TripCard";
 import { getAlertCountsByUser } from "@/lib/db/weather";
 import { runWeatherCheck } from "@/lib/weather/check";
@@ -11,6 +11,9 @@ export const metadata = { title: "Dashboard — RouteCrafted" };
 export default async function DashboardPage() {
   const session = await auth();
   if (!session) redirect("/login");
+
+  // Auto-mark trips whose end date has passed as completed
+  await markExpiredTripsCompleted(session.user.id);
 
   const [trips, alertCounts] = await Promise.all([
     getTripsByUser(session.user.id),

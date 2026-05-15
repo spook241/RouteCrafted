@@ -14,6 +14,8 @@ const updateTripSchema = z
     groupType: z.enum(["solo", "couple", "family", "friends"]),
     pacing: z.enum(["relaxed", "moderate", "packed"]),
     status: z.enum(["draft", "active", "completed"]),
+    rating: z.number().int().min(1).max(5).nullable(),
+    comment: z.string().max(500).nullable(),
   })
   .partial();
 
@@ -59,6 +61,13 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       { error: "Validation failed", issues: parsed.error.issues },
       { status: 422 },
     );
+  }
+
+  // Completed trips: only rating and comment can be updated
+  if (trip.status === "completed") {
+    const { rating, comment } = parsed.data;
+    const updated = await updateTrip(id, session.user.id, { rating: rating ?? null, comment: comment ?? null });
+    return NextResponse.json(updated);
   }
 
   const updated = await updateTrip(id, session.user.id, parsed.data);

@@ -14,7 +14,24 @@ export function TripCoverUpload({ tripId, currentUrl }: TripCoverUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl);
   const [uploading, setUploading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleRefresh() {
+    setError(null);
+    setRefreshing(true);
+    try {
+      const res = await fetch(`/api/trips/${tripId}/refresh-cover`, { method: "POST" });
+      if (!res.ok) throw new Error("Could not find a photo for this destination");
+      const { coverImageUrl } = await res.json() as { coverImageUrl: string };
+      setPreview(coverImageUrl);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -96,6 +113,21 @@ export function TripCoverUpload({ tripId, currentUrl }: TripCoverUploadProps) {
           {error}
         </p>
       )}
+
+      <div className="absolute top-3 right-3 flex gap-2">
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing || uploading}
+          title="Refresh AI photo"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/90 hover:bg-white text-on-surface shadow transition disabled:opacity-50"
+        >
+          <span className={`material-symbols-outlined text-[14px] ${refreshing ? "animate-spin" : ""}`}>
+            {refreshing ? "progress_activity" : "auto_awesome"}
+          </span>
+          {refreshing ? "Finding photo…" : "Refresh AI photo"}
+        </button>
+      </div>
     </div>
   );
 }

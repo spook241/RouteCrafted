@@ -1,4 +1,5 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lt, ne } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "./index";
 import { trips } from "./schema";
 
@@ -17,7 +18,12 @@ export type TripInsert = {
 };
 
 export type TripUpdate = Partial<
-  Omit<TripInsert, "userId"> & { status: string; coverImageUrl: string | null }
+  Omit<TripInsert, "userId"> & {
+    status: string;
+    coverImageUrl: string | null;
+    rating: number | null;
+    comment: string | null;
+  }
 >;
 
 export async function getTripsByUser(userId: string) {
@@ -61,4 +67,17 @@ export async function deleteTrip(id: string, userId: string) {
     .where(and(eq(trips.id, id), eq(trips.userId, userId)))
     .returning({ id: trips.id });
   return result[0] ?? null;
+}
+
+export async function markExpiredTripsCompleted(userId: string) {
+  await db
+    .update(trips)
+    .set({ status: "completed", updatedAt: new Date() })
+    .where(
+      and(
+        eq(trips.userId, userId),
+        lt(trips.endDate, sql`CURRENT_DATE`),
+        ne(trips.status, "completed"),
+      ),
+    );
 }

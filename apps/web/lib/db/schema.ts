@@ -7,6 +7,7 @@ import {
   date,
   integer,
   boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -43,6 +44,8 @@ export const trips = pgTable("trips", {
   pacing: text("pacing").notNull(), // 'relaxed' | 'moderate' | 'packed'
   status: text("status").notNull().default("draft"), // 'draft' | 'active' | 'completed'
   coverImageUrl: text("cover_image_url"),
+  rating: integer("rating"), // 1–5, user rating after trip
+  comment: text("comment"), // short post-trip comment
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -83,6 +86,7 @@ export const itineraryItems = pgTable("itinerary_items", {
   estimatedCost: numeric("estimated_cost").notNull(),
   isOptional: boolean("is_optional").notNull().default(false),
   placeCardId: uuid("place_card_id"), // FK added in Phase 6
+  category: text("category"), // e.g. 'museum' | 'restaurant' | 'landmark' etc.
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -106,10 +110,46 @@ export const placeCards = pgTable("place_cards", {
   lat: numeric("lat"),
   long: numeric("long"),
   imageUrl: text("image_url"),
+  // ── enrichment metadata (added Phase 1) ──────────────────────────────────
+  rating: numeric("rating", { precision: 3, scale: 1 }),
+  reviewCount: integer("review_count"),
+  priceLevel: integer("price_level"), // 1–4
+  openingHours: text("opening_hours").array(),
+  imageSource: text("image_source"), // 'google' | 'wikimedia' | 'pexels' | 'unsplash' | 'opentripmap'
+  imageAttribution: text("image_attribution"),
+  imageIsExact: boolean("image_is_exact").notNull().default(false),
+  enrichmentConfidence: text("enrichment_confidence"), // 'high' | 'medium' | 'low'
+  externalSource: text("external_source"),
+  externalPlaceId: text("external_place_id"),
+  enrichedAt: timestamp("enriched_at"),
+  // ─────────────────────────────────────────────────────────────────────────
   flagged: boolean("flagged").notNull().default(false),
   flagReason: text("flag_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── place_enrichment_cache ───────────────────────────────────────────────────
+
+export const placeEnrichmentCache = pgTable("place_enrichment_cache", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  placeNameNormalized: text("place_name_normalized").notNull(),
+  destination: text("destination").notNull(),
+  category: text("category"),
+  provider: text("provider").notNull(), // 'wikimedia' | 'pexels' | 'geoapify' | 'google'
+  providerId: text("provider_id"),
+  lat: numeric("lat"),
+  lon: numeric("lon"),
+  rating: numeric("rating", { precision: 3, scale: 1 }),
+  reviewCount: integer("review_count"),
+  priceLevel: integer("price_level"),
+  imageUrl: text("image_url"),
+  imageAttribution: text("image_attribution"),
+  imageSource: text("image_source"),
+  imageIsExact: boolean("image_is_exact").notNull().default(false),
+  rawPayload: jsonb("raw_payload"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
 });
 
 // ─── weather_alerts ───────────────────────────────────────────────────────────

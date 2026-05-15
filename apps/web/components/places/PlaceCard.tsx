@@ -17,6 +17,12 @@ interface PlaceCardData {
   timeNeeded: string;
   imageUrl: string | null;
   flagged: boolean;
+  // enrichment
+  rating: string | null;      // Drizzle numeric → string
+  reviewCount: number | null;
+  priceLevel: number | null;
+  imageAttribution: string | null;
+  imageIsExact: boolean;
 }
 
 const VERDICT_STYLES: Record<string, { label: string; icon: string; classes: string }> = {
@@ -44,6 +50,12 @@ const COST_ICONS: Record<string, string> = {
   high: "€€€",
 };
 
+// Enriched price level symbols (index = priceLevel int 0-4)
+const PRICE_SYMBOLS = ["Free", "€", "€€", "€€€", "€€€€"];
+
+// Categories that get real star ratings from enrichment providers
+const RATED_CATEGORIES = new Set(["restaurant", "cafe", "bar", "bakery", "hotel"]);
+
 export function PlaceCard({ card }: { card: PlaceCardData }) {
   const router = useRouter();
   const [flagging, setFlagging] = useState(false);
@@ -52,6 +64,15 @@ export function PlaceCard({ card }: { card: PlaceCardData }) {
   const [loading, setLoading] = useState(false);
 
   const verdict = VERDICT_STYLES[card.verdict] ?? VERDICT_STYLES.depends;
+
+  // Parse numeric rating string from DB (Drizzle returns numeric as string)
+  const ratingNum = card.rating != null ? parseFloat(card.rating) : null;
+
+  // Use enriched priceLevel for food/hotel when available, fall back to AI costLevel
+  const priceDisplay =
+    RATED_CATEGORIES.has(card.category) && card.priceLevel != null
+      ? (PRICE_SYMBOLS[card.priceLevel] ?? COST_ICONS[card.costLevel] ?? card.costLevel)
+      : (COST_ICONS[card.costLevel] ?? card.costLevel);
 
   async function handleFlag() {
     if (!flagReason.trim()) return;
@@ -84,6 +105,11 @@ export function PlaceCard({ card }: { card: PlaceCardData }) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          {card.imageAttribution && (
+            <p className="absolute bottom-1 right-2 text-[9px] text-white/60 leading-tight text-right max-w-[80%] truncate">
+              {card.imageAttribution}
+            </p>
+          )}
         </div>
       ) : (
         <div className="w-full h-36 bg-surface-container-low flex items-center justify-center">
@@ -139,8 +165,17 @@ export function PlaceCard({ card }: { card: PlaceCardData }) {
         <div className="flex flex-wrap gap-1.5 mt-auto pt-3">
           <span className="text-xs font-label bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full flex items-center gap-1">
             <span className="material-symbols-outlined text-[11px]">payments</span>
-            {COST_ICONS[card.costLevel] ?? card.costLevel}
+            {priceDisplay}
           </span>
+          {RATED_CATEGORIES.has(card.category) && ratingNum != null && (
+            <span className="text-xs font-label bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <span className="material-symbols-outlined text-[11px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+              {ratingNum.toFixed(1)}
+              {card.reviewCount != null && (
+                <span className="text-on-surface-variant/60">({card.reviewCount.toLocaleString()})</span>
+              )}
+            </span>
+          )}
           <span className="text-xs font-label bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full flex items-center gap-1">
             <span className="material-symbols-outlined text-[11px]">schedule</span>
             {card.timeNeeded}

@@ -15,6 +15,20 @@
       "when": 1775149137774,
       "tag": "0001_tidy_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778592964754,
+      "tag": "0002_parched_slyde",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778831258519,
+      "tag": "0003_crazy_hydra",
+      "breakpoints": true
     }
   ]
 }

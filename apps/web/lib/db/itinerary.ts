@@ -57,6 +57,7 @@ export async function insertItems(
     position: number;
     timeBlock: string;
     type: string;
+    category?: string | null;
     title: string;
     description: string;
     location: string;

@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { TripDeleteButton } from "./TripDeleteButton";
 
 type Trip = {
   id: string;
@@ -44,10 +45,16 @@ export function TripCard({
   trip: Trip;
   alertCount?: number;
 }) {
+  const router = useRouter();
+  const isCompleted = trip.status === "completed";
+
   return (
-    <Link
-      href={`/trips/${trip.id}`}
-      className="block bg-surface-container-lowest rounded-3xl overflow-hidden shadow-card hover:shadow-card-hover transition-shadow group"
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(`/trips/${trip.id}`)}
+      onKeyDown={(e) => { if (e.key === "Enter") router.push(`/trips/${trip.id}`); }}
+      className={`cursor-pointer bg-surface-container-lowest rounded-3xl overflow-hidden shadow-card hover:shadow-card-hover transition-shadow group relative${isCompleted ? " opacity-75" : ""}`}
     >
       {/* Cover image */}
       <div className="relative h-48 w-full bg-surface-container-low overflow-hidden">
@@ -56,7 +63,7 @@ export function TripCard({
             src={trip.coverImageUrl}
             alt={`${trip.destination} cover`}
             fill
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
+            className={`object-cover transition-transform duration-700 group-hover:scale-105${isCompleted ? " grayscale" : ""}`}
             unoptimized
           />
         ) : (
@@ -71,6 +78,13 @@ export function TripCard({
         }`}>
           {chipLabel(trip.status)}
         </span>
+        {/* Delete button — stop propagation so the card click doesn't fire */}
+        <div
+          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TripDeleteButton tripId={trip.id} variant="icon" />
+        </div>
       </div>
 
       <div className="p-6">
@@ -108,6 +122,6 @@ export function TripCard({
           ))}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

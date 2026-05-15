@@ -3,6 +3,7 @@ import { z } from "zod";
 export const itineraryItemSchema = z.object({
   timeBlock: z.enum(["morning", "afternoon", "evening"]),
   type: z.enum(["activity", "meal", "transport"]),
+  category: z.string().optional(),
   title: z.string().min(1),
   description: z.string().min(1),
   location: z.string().min(1),

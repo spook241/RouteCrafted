@@ -106,6 +106,7 @@ export async function POST(req: Request) {
       position: idx + 1,
       timeBlock: item.timeBlock,
       type: item.type,
+      category: item.category ?? null,
       title: item.title,
       description: item.description,
       location: item.location,

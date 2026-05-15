@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SearchBox } from "@mapbox/search-js-react";
 import type { SearchBoxRetrieveResponse } from "@mapbox/search-js-core";
+import { DateRangePicker } from "./DateRangePicker";
 
 const SELECT_CLASS =
   "w-full bg-surface-container-low rounded-2xl px-4 py-3 text-on-surface text-sm font-label focus:outline-none focus:ring-2 focus:ring-primary";
@@ -51,10 +52,6 @@ export function TripForm() {
     }
     if (!startDate || !endDate) {
       setError("Please select both start and end dates.");
-      return;
-    }
-    if (new Date(startDate) >= new Date(endDate)) {
-      setError("Start date must be before end date.");
       return;
     }
 
@@ -125,27 +122,15 @@ export function TripForm() {
       </div>
 
       {/* Dates */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={LABEL_CLASS}>Start date</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-            className={SELECT_CLASS}
-          />
-        </div>
-        <div>
-          <label className={LABEL_CLASS}>End date</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-            className={SELECT_CLASS}
-          />
-        </div>
+      <div>
+        <label className={LABEL_CLASS}>Travel dates</label>
+        <DateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          onChange={(s, e) => { setStartDate(s); setEndDate(e); }}
+          lat={lat}
+          lon={long}
+        />
       </div>
 
       {/* Preferences grid */}

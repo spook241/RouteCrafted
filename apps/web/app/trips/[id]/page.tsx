@@ -13,6 +13,8 @@ import { PlaceCard } from "@/components/places/PlaceCard";
 import { GeneratePlaceCardsButton } from "@/components/places/GeneratePlaceCardsButton";
 import { getPlaceCardsByTrip } from "@/lib/db/places";
 import { TripCoverUpload } from "@/components/trips/TripCoverUpload";
+import { TripDeleteButton } from "@/components/trips/TripDeleteButton";
+import { TripRatingModal } from "@/components/trips/TripRatingModal";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -108,6 +110,14 @@ export default async function TripDetailPage({ params }: Props) {
               </div>
               <div className="flex flex-col gap-2 items-end">
                 {days.length > 0 && <RefreshWeatherButton tripId={id} />}
+                {trip.status === "completed" && (
+                  <TripRatingModal
+                    tripId={id}
+                    currentRating={trip.rating}
+                    currentComment={trip.comment}
+                  />
+                )}
+                <TripDeleteButton tripId={id} variant="button" redirectTo="/dashboard" />
               </div>
             </div>
 

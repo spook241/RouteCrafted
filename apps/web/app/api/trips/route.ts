@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
-import { createTrip, getTripsByUser } from "@/lib/db/trips";
+import { createTrip, getTripsByUser, updateTrip } from "@/lib/db/trips";
+import { fetchCityPhoto } from "@/lib/places/city-photo";
 
 const createTripSchema = z.object({
   destination: z.string().min(1),
@@ -91,5 +92,21 @@ export async function POST(req: Request) {
     pacing: parsed.data.pacing,
   });
 
-  return NextResponse.json(trip, { status: 201 });
+  // Fetch cover photo — bounded by 4 s so the response stays fast.
+  // Awaiting here ensures the image is ready when the client navigates to the trip.
+  let coverImageUrl: string | null = null;
+  try {
+    const photo = await Promise.race([
+      fetchCityPhoto(destination, country, lat, long),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+    ]);
+    if (photo) {
+      coverImageUrl = photo.imageUrl;
+      await updateTrip(trip.id, session.user.id, { coverImageUrl });
+    }
+  } catch {
+    // Non-critical — trip works without a cover
+  }
+
+  return NextResponse.json({ ...trip, coverImageUrl }, { status: 201 });
 }
