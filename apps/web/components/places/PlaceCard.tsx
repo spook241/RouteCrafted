@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface PlaceCardData {
   id: string;
@@ -56,12 +57,24 @@ const PRICE_SYMBOLS = ["Free", "€", "€€", "€€€", "€€€€"];
 // Categories that get real star ratings from enrichment providers
 const RATED_CATEGORIES = new Set(["restaurant", "cafe", "bar", "bakery", "hotel"]);
 
-export function PlaceCard({ card }: { card: PlaceCardData }) {
+export function PlaceCard({
+  card,
+  scheduledDay,
+  scheduledTime,
+  tripId,
+}: {
+  card: PlaceCardData;
+  scheduledDay?: number | null;
+  scheduledTime?: string | null;
+  tripId?: string;
+}) {
   const router = useRouter();
   const [flagging, setFlagging] = useState(false);
   const [flagReason, setFlagReason] = useState("");
   const [showFlagForm, setShowFlagForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+  const [swapError, setSwapError] = useState<string | null>(null);
 
   const verdict = VERDICT_STYLES[card.verdict] ?? VERDICT_STYLES.depends;
 
@@ -91,6 +104,22 @@ export function PlaceCard({ card }: { card: PlaceCardData }) {
     } finally {
       setLoading(false);
       setFlagging(false);
+    }
+  }
+
+  async function handleSwap() {
+    setSwapping(true);
+    setSwapError(null);
+    try {
+      const res = await fetch(`/api/places/${card.id}/swap`, { method: "POST" });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSwapError(data.error ?? "Swap failed");
+      }
+    } finally {
+      setSwapping(false);
     }
   }
 
@@ -163,6 +192,16 @@ export function PlaceCard({ card }: { card: PlaceCardData }) {
 
         {/* Meta chips */}
         <div className="flex flex-wrap gap-1.5 mt-auto pt-3">
+          {/* Day/time chip — links to the day detail page */}
+          {scheduledDay != null && scheduledTime && tripId && (
+            <Link
+              href={`/trips/${tripId}/day/${scheduledDay}`}
+              className="text-xs font-label bg-primary/10 text-primary px-2.5 py-0.5 rounded-full flex items-center gap-1 hover:bg-primary/20 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[11px]" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_today</span>
+              Day {scheduledDay} · {scheduledTime.charAt(0).toUpperCase() + scheduledTime.slice(1)}
+            </Link>
+          )}
           <span className="text-xs font-label bg-surface-container-low text-on-surface-variant px-2.5 py-0.5 rounded-full flex items-center gap-1">
             <span className="material-symbols-outlined text-[11px]">payments</span>
             {priceDisplay}
@@ -188,13 +227,28 @@ export function PlaceCard({ card }: { card: PlaceCardData }) {
 
         {/* Flag section */}
         {!showFlagForm ? (
-          <button
-            onClick={() => setShowFlagForm(true)}
-            className="text-xs font-label text-on-surface-variant hover:text-on-surface transition text-left flex items-center gap-1 mt-1"
-          >
-            <span className="material-symbols-outlined text-[14px]">flag</span>
-            Report inaccuracy
-          </button>
+          <div className="flex items-center gap-3 mt-1">
+            <button
+              onClick={() => setShowFlagForm(true)}
+              className="text-xs font-label text-on-surface-variant hover:text-on-surface transition text-left flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[14px]">flag</span>
+              Report inaccuracy
+            </button>
+            <button
+              onClick={handleSwap}
+              disabled={swapping}
+              title="Swap for another activity"
+              className="ml-auto text-xs font-label text-on-surface-variant hover:text-primary transition flex items-center gap-1 disabled:opacity-50"
+            >
+              {swapping ? (
+                <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+              ) : (
+                <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
+              )}
+              Swap
+            </button>
+          </div>
         ) : (
           <div className="mt-1 space-y-2">
             <textarea
@@ -224,6 +278,9 @@ export function PlaceCard({ card }: { card: PlaceCardData }) {
               </button>
             </div>
           </div>
+        )}
+        {swapError && (
+          <p className="text-xs text-error mt-1">{swapError}</p>
         )}
       </div>
     </div>

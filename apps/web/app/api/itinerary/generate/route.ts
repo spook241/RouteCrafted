@@ -7,6 +7,8 @@ import { getActivePrompt, getAllSettings } from "@/lib/db/ai-config";
 import { generateJSON } from "@/lib/ai/openrouter";
 import { interpolate } from "@/lib/ai/interpolate";
 import { itineraryResponseSchema } from "@/lib/ai/schemas";
+import { insertPlaceCard, linkItemToCard } from "@/lib/db/places";
+import { buildCardPayload } from "@/lib/places/card-generator";
 
 const bodySchema = z.object({
   tripId: z.string().uuid(),
@@ -116,10 +118,52 @@ export async function POST(req: Request) {
     })),
   );
 
-  await insertItems(itemRows);
+  const insertedItems = await insertItems(itemRows);
+
+  // ── Auto-generate place cards for activity items ──────────────────────────
+  const activityItems = insertedItems
+    .filter((i) => i.type === "activity")
+    .slice(0, 8);
+
+  const cards: Awaited<ReturnType<typeof insertPlaceCard>>[] = [];
+
+  if (activityItems.length > 0) {
+    const [cardPromptRow, cardSettings] = await Promise.all([
+      getActivePrompt("place_card"),
+      getAllSettings(),
+    ]);
+    const cardModel = cardSettings.find((s) => s.key === "model")?.value;
+
+    if (cardPromptRow) {
+      for (const item of activityItems) {
+        const payload = await buildCardPayload(
+          { id: item.id, title: item.title, category: item.category, location: item.location },
+          {
+            destination: trip.destination,
+            country: trip.country,
+            lat: trip.lat,
+            long: trip.long,
+            travelStyle: trip.travelStyle,
+            groupType: trip.groupType,
+            budgetRange: trip.budgetRange,
+          },
+          cardPromptRow.template,
+          cardModel,
+        );
+        if (!payload) continue;
+        try {
+          const card = await insertPlaceCard({ ...payload, tripId });
+          await linkItemToCard(item.id, card.id);
+          cards.push(card);
+        } catch {
+          continue;
+        }
+      }
+    }
+  }
 
   // Activate trip
   await updateTrip(tripId, session.user.id, { status: "active" });
 
-  return NextResponse.json({ days: insertedDays }, { status: 201 });
+  return NextResponse.json({ days: insertedDays, cards }, { status: 201 });
 }

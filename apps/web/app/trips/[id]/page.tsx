@@ -11,7 +11,7 @@ import { WeatherAlertBanner } from "@/components/weather/WeatherAlertBanner";
 import { RefreshWeatherButton } from "@/components/weather/RefreshWeatherButton";
 import { PlaceCard } from "@/components/places/PlaceCard";
 import { GeneratePlaceCardsButton } from "@/components/places/GeneratePlaceCardsButton";
-import { getPlaceCardsByTrip } from "@/lib/db/places";
+import { getPlaceCardsWithSchedule } from "@/lib/db/places";
 import { TripCoverUpload } from "@/components/trips/TripCoverUpload";
 import { TripDeleteButton } from "@/components/trips/TripDeleteButton";
 import { TripRatingModal } from "@/components/trips/TripRatingModal";
@@ -59,7 +59,7 @@ export default async function TripDetailPage({ params }: Props) {
     runWeatherCheck(id, session.user.id)
       .then(() => getActiveAlertsByTrip(id))
       .catch(() => getActiveAlertsByTrip(id)),
-    getPlaceCardsByTrip(id),
+    getPlaceCardsWithSchedule(id),
   ]);
 
   // Fetch item counts for each day
@@ -217,7 +217,13 @@ export default async function TripDetailPage({ params }: Props) {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {placeCards.map((card) => (
-                      <PlaceCard key={card.id} card={card} />
+                      <PlaceCard
+                        key={card.id}
+                        card={card}
+                        scheduledDay={card.scheduledDay}
+                        scheduledTime={card.scheduledTime}
+                        tripId={id}
+                      />
                     ))}
                   </div>
                 )}

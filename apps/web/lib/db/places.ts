@@ -1,6 +1,6 @@
-import { eq, and, asc, gt } from "drizzle-orm";
+import { eq, and, asc, gt, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { placeCards, adminFlags, trips, itineraryItems, placeEnrichmentCache } from "@/lib/db/schema";
+import { placeCards, adminFlags, trips, itineraryItems, itineraryDays, placeEnrichmentCache } from "@/lib/db/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -165,6 +165,50 @@ export async function deletePlaceCard(id: string) {
     .where(eq(placeCards.id, id))
     .returning();
   return rows[0] ?? null;
+}
+
+// ─── Enrichment Cache ─────────────────────────────────────────────────────────
+
+// ─── Bulk / schedule helpers ─────────────────────────────────────────────────
+
+export async function deleteAllPlaceCardsByTrip(tripId: string) {
+  const cards = await db
+    .select({ id: placeCards.id })
+    .from(placeCards)
+    .where(eq(placeCards.tripId, tripId));
+  const cardIds = cards.map((c) => c.id);
+  if (cardIds.length === 0) return 0;
+  // Null out item references
+  await db
+    .update(itineraryItems)
+    .set({ placeCardId: null })
+    .where(inArray(itineraryItems.placeCardId, cardIds));
+  await db.delete(placeCards).where(eq(placeCards.tripId, tripId));
+  return cardIds.length;
+}
+
+export async function getPlaceCardsWithSchedule(tripId: string) {
+  const rows = await db
+    .select({
+      card: placeCards,
+      scheduledDay: itineraryDays.dayNumber,
+      scheduledTime: itineraryItems.timeBlock,
+    })
+    .from(placeCards)
+    .leftJoin(itineraryItems, eq(itineraryItems.placeCardId, placeCards.id))
+    .leftJoin(itineraryDays, eq(itineraryDays.id, itineraryItems.dayId))
+    .where(and(eq(placeCards.tripId, tripId), eq(placeCards.flagged, false)))
+    .orderBy(asc(itineraryDays.dayNumber), asc(itineraryItems.position));
+  return rows.map((r) => ({
+    ...r.card,
+    scheduledDay: r.scheduledDay,
+    scheduledTime: r.scheduledTime,
+  }));
+}
+
+export async function getPlaceCardsForItems(cardIds: string[]) {
+  if (cardIds.length === 0) return [];
+  return db.select().from(placeCards).where(inArray(placeCards.id, cardIds));
 }
 
 // ─── Enrichment Cache ─────────────────────────────────────────────────────────

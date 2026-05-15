@@ -50,6 +50,8 @@ export interface ResolveInput {
   lon: number;
   /** Category from itineraryItems.category (may be undefined for old rows) */
   category?: string;
+  /** Skip the DB cache and force fresh provider chain (used by swap) */
+  bypassCache?: boolean;
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
@@ -68,24 +70,26 @@ export async function resolveEnrichment(
   console.log(`[enrichment] resolving "${name}" (${category ?? "no-category"}) in ${destination}`);
 
   // ── 1. DB cache check ────────────────────────────────────────────────────
-  const cached = await getCachedEnrichment(nameNorm, destination, category).catch(() => null);
-  if (cached) {
-    console.log(`[enrichment] cache HIT — imageUrl: ${cached.imageUrl ?? "null"}`);
-    return {
-      source: cached.provider as EnrichmentResult["source"],
-      category: cached.category ?? category,
-      lat: cached.lat ? Number(cached.lat) : undefined,
-      lon: cached.lon ? Number(cached.lon) : undefined,
-      providerId: cached.providerId ?? undefined,
-      rating: cached.rating ? Number(cached.rating) : undefined,
-      reviewCount: cached.reviewCount ?? undefined,
-      priceLevel: cached.priceLevel ?? undefined,
-      openingHours: undefined, // not stored in cache — re-fetch if needed
-      imageUrl: cached.imageUrl ?? undefined,
-      imageAttribution: cached.imageAttribution ?? undefined,
-      imageIsExact: cached.imageIsExact ?? false,
-      confidence: 1.0, // from cache — highest confidence
-    };
+  if (!input.bypassCache) {
+    const cached = await getCachedEnrichment(nameNorm, destination, category).catch(() => null);
+    if (cached) {
+      console.log(`[enrichment] cache HIT — imageUrl: ${cached.imageUrl ?? "null"}`);
+      return {
+        source: cached.provider as EnrichmentResult["source"],
+        category: cached.category ?? category,
+        lat: cached.lat ? Number(cached.lat) : undefined,
+        lon: cached.lon ? Number(cached.lon) : undefined,
+        providerId: cached.providerId ?? undefined,
+        rating: cached.rating ? Number(cached.rating) : undefined,
+        reviewCount: cached.reviewCount ?? undefined,
+        priceLevel: cached.priceLevel ?? undefined,
+        openingHours: undefined, // not stored in cache — re-fetch if needed
+        imageUrl: cached.imageUrl ?? undefined,
+        imageAttribution: cached.imageAttribution ?? undefined,
+        imageIsExact: cached.imageIsExact ?? false,
+        confidence: 1.0, // from cache — highest confidence
+      };
+    }
   }
 
   console.log(`[enrichment] cache MISS — running provider chain`);

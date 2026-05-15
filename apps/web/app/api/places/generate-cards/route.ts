@@ -5,17 +5,14 @@ import { getTripById } from "@/lib/db/trips";
 import { getDaysByTrip } from "@/lib/db/itinerary";
 import { db } from "@/lib/db";
 import { itineraryItems } from "@/lib/db/schema";
-import { eq, isNull, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import {
   insertPlaceCard,
   linkItemToCard,
-  getAllPlaceCardsByTrip,
+  deleteAllPlaceCardsByTrip,
 } from "@/lib/db/places";
-import { generateJSON } from "@/lib/ai/openrouter";
-import { interpolate } from "@/lib/ai/interpolate";
-import { placeCardResponseSchema, type PlaceCardResponse } from "@/lib/ai/schemas";
 import { getActivePrompt, getAllSettings } from "@/lib/db/ai-config";
-import { resolveEnrichment } from "@/lib/places/resolver";
+import { buildCardPayload } from "@/lib/places/card-generator";
 
 const bodySchema = z.object({
   tripId: z.string().uuid(),
@@ -46,26 +43,22 @@ export async function POST(req: Request) {
 
   const dayIds = days.map((d) => d.id);
 
-  // Get activity items that don't have a place card yet
+  // Replace-all semantics: delete existing cards first
+  await deleteAllPlaceCardsByTrip(tripId);
+
+  // Get all activity items across the trip
   const allItems = await db
     .select()
     .from(itineraryItems)
-    .where(
-      inArray(itineraryItems.dayId, dayIds),
-    );
+    .where(inArray(itineraryItems.dayId, dayIds));
 
   const candidates = allItems
-    .filter((item) => item.type === "activity" && item.placeCardId === null)
+    .filter((item) => item.type === "activity")
     .slice(0, MAX_CARDS);
 
   if (candidates.length === 0) {
-    // All items already have cards — return existing
-    const existing = await getAllPlaceCardsByTrip(tripId);
-    return NextResponse.json({ generated: 0, cards: existing });
+    return NextResponse.json({ generated: 0, cards: [] });
   }
-
-  const tripLat = trip.lat ? parseFloat(trip.lat) : null;
-  const tripLon = trip.long ? parseFloat(trip.long) : null;
 
   // Fetch prompt template + model from DB (once, before the loop)
   const [promptRow, settings] = await Promise.all([
@@ -84,64 +77,28 @@ export async function POST(req: Request) {
   const generated: Awaited<ReturnType<typeof insertPlaceCard>>[] = [];
 
   for (const item of candidates) {
-    try {
-      // Resolve enrichment via layered provider chain
-      const enrichment = await resolveEnrichment({
-        name: item.title,
-        destination: trip.destination,
-        lat: tripLat ?? 0,
-        lon: tripLon ?? 0,
-        category: item.category ?? undefined,
-      });
-
-      const category = enrichment.category ?? item.category ?? "attraction";
-
-      const prompt = interpolate(promptRow.template, {
-        name: item.title,
-        category,
-        location: item.location,
+    const payload = await buildCardPayload(
+      { id: item.id, title: item.title, category: item.category, location: item.location },
+      {
         destination: trip.destination,
         country: trip.country,
+        lat: trip.lat,
+        long: trip.long,
         travelStyle: trip.travelStyle,
         groupType: trip.groupType,
         budgetRange: trip.budgetRange,
-      });
+      },
+      promptRow.template,
+      model,
+    );
 
-      const raw = await generateJSON<PlaceCardResponse>(prompt, model);
-      const validated = placeCardResponseSchema.parse(raw);
+    if (!payload) continue;
 
-      const card = await insertPlaceCard({
-        tripId,
-        name: item.title,
-        category,
-        verdict: validated.verdict,
-        summary: validated.summary,
-        worthItReasons: validated.worthItReasons,
-        skipItReasons: validated.skipItReasons,
-        bestFor: validated.bestFor,
-        costLevel: validated.costLevel,
-        timeNeeded: validated.timeNeeded,
-        lat: enrichment.lat != null ? String(enrichment.lat) : null,
-        long: enrichment.lon != null ? String(enrichment.lon) : null,
-        imageUrl: enrichment.imageUrl ?? null,
-        // enrichment metadata
-        rating: enrichment.rating != null ? String(enrichment.rating) : null,
-        reviewCount: enrichment.reviewCount ?? null,
-        priceLevel: enrichment.priceLevel ?? null,
-        openingHours: enrichment.openingHours ?? null,
-        imageSource: enrichment.source,
-        imageAttribution: enrichment.imageAttribution ?? null,
-        imageIsExact: enrichment.imageIsExact,
-        enrichmentConfidence: String(enrichment.confidence),
-        externalSource: enrichment.source,
-        externalPlaceId: enrichment.providerId ?? null,
-        enrichedAt: new Date(),
-      });
-
+    try {
+      const card = await insertPlaceCard({ ...payload, tripId });
       await linkItemToCard(item.id, card.id);
       generated.push(card);
     } catch {
-      // Skip failed individual card — don't abort the whole batch
       continue;
     }
   }

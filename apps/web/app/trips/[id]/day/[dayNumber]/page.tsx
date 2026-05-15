@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { getTripById } from "@/lib/db/trips";
 import { getDayWithItems } from "@/lib/db/itinerary";
 import { RewriteDayButton } from "@/components/itinerary/RewriteDayButton";
+import { getPlaceCardsForItems } from "@/lib/db/places";
+import { PlaceCardTrigger } from "@/components/places/PlaceCardTrigger";
 
 type Props = { params: Promise<{ id: string; dayNumber: string }> };
 
@@ -56,6 +58,13 @@ export default async function DayPage({ params }: Props) {
   if (!dayWithItems) notFound();
 
   const { items, ...day } = dayWithItems;
+
+  // Fetch place cards for items that have one
+  const linkedCardIds = items
+    .map((i) => i.placeCardId)
+    .filter((cid): cid is string => cid != null);
+  const linkedCardsArray = await getPlaceCardsForItems(linkedCardIds);
+  const cardMap = new Map(linkedCardsArray.map((c) => [c.id, c]));
 
   const itemsByBlock = BLOCK_ORDER.reduce(
     (acc, block) => {
@@ -182,6 +191,11 @@ export default async function DayPage({ params }: Props) {
                           <span className="material-symbols-outlined text-[12px] opacity-60">open_in_new</span>
                         </a>
                         <p className="text-sm text-on-surface-variant leading-relaxed">{item.description}</p>
+                        {item.placeCardId && cardMap.get(item.placeCardId) && (
+                          <div className="mt-3">
+                            <PlaceCardTrigger card={cardMap.get(item.placeCardId)!} />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
