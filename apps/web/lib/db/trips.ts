@@ -23,6 +23,7 @@ export type TripUpdate = Partial<
     coverImageUrl: string | null;
     rating: number | null;
     comment: string | null;
+    itineraryStale: boolean;
   }
 >;
 

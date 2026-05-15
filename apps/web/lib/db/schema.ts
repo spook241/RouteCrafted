@@ -46,6 +46,7 @@ export const trips = pgTable("trips", {
   coverImageUrl: text("cover_image_url"),
   rating: integer("rating"), // 1–5, user rating after trip
   comment: text("comment"), // short post-trip comment
+  itineraryStale: boolean("itinerary_stale").notNull().default(false), // true when prefs changed after generation
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

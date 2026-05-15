@@ -15,6 +15,8 @@ import { getPlaceCardsByTrip } from "@/lib/db/places";
 import { TripCoverUpload } from "@/components/trips/TripCoverUpload";
 import { TripDeleteButton } from "@/components/trips/TripDeleteButton";
 import { TripRatingModal } from "@/components/trips/TripRatingModal";
+import { TripDetailActions } from "@/components/trips/TripDetailActions";
+import { ItineraryStaleBanner } from "@/components/trips/ItineraryStaleBanner";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -146,6 +148,11 @@ export default async function TripDetailPage({ params }: Props) {
               </div>
             )}
 
+            {/* Stale itinerary banner */}
+            {days.length > 0 && trip.itineraryStale && (
+              <ItineraryStaleBanner tripId={id} />
+            )}
+
             {/* Day pills */}
             {days.length > 0 && (
               <div>
@@ -222,9 +229,12 @@ export default async function TripDetailPage({ params }: Props) {
           <aside className="lg:col-span-4 space-y-6">
             {/* Trip preferences */}
             <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-card">
-              <h3 className="font-headline font-bold text-on-surface mb-5 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-primary">tune</span>
-                Trip Details
+              <h3 className="font-headline font-bold text-on-surface mb-5 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px] text-primary">tune</span>
+                  Trip Details
+                </span>
+                <TripDetailActions trip={trip} hasItinerary={days.length > 0} />
               </h3>
               <dl className="space-y-3">
                 {[

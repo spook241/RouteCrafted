@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { deleteTrip, getTripById, updateTrip } from "@/lib/db/trips";
+import { getDaysByTrip } from "@/lib/db/itinerary";
 
 const updateTripSchema = z
   .object({
@@ -16,6 +17,7 @@ const updateTripSchema = z
     status: z.enum(["draft", "active", "completed"]),
     rating: z.number().int().min(1).max(5).nullable(),
     comment: z.string().max(500).nullable(),
+    itineraryStale: z.boolean(),
   })
   .partial();
 
@@ -70,7 +72,21 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     return NextResponse.json(updated);
   }
 
-  const updated = await updateTrip(id, session.user.id, parsed.data);
+  const updateData = { ...parsed.data };
+
+  // Auto-set itineraryStale when preference fields change and an itinerary exists
+  const prefFields = ["budgetRange", "travelStyle", "groupType", "pacing"] as const;
+  const prefsChanged = prefFields.some(
+    (k) => k in parsed.data && parsed.data[k] !== trip[k],
+  );
+  if (prefsChanged && updateData.itineraryStale === undefined) {
+    const days = await getDaysByTrip(id);
+    if (days.length > 0) {
+      updateData.itineraryStale = true;
+    }
+  }
+
+  const updated = await updateTrip(id, session.user.id, updateData);
   return NextResponse.json(updated);
 }
 

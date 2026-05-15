@@ -142,3 +142,18 @@ export async function deleteItem(id: string, userId: string) {
   await db.delete(itineraryItems).where(eq(itineraryItems.id, id));
   return true;
 }
+
+export async function clearItinerary(tripId: string, userId: string): Promise<number> {
+  const [trip] = await db
+    .select({ id: trips.id })
+    .from(trips)
+    .where(and(eq(trips.id, tripId), eq(trips.userId, userId)))
+    .limit(1);
+  if (!trip) return 0;
+
+  const deleted = await db
+    .delete(itineraryDays)
+    .where(eq(itineraryDays.tripId, tripId))
+    .returning({ id: itineraryDays.id });
+  return deleted.length;
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "trips" ADD COLUMN "itinerary_stale" boolean DEFAULT false NOT NULL;
