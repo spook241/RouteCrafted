@@ -107,7 +107,9 @@ export async function POST(req: Request) {
           callType: "generate_itinerary",
           tripId,
           userId: session.user.id,
-        }, 120_000, provider);
+        }, 120_000, provider, (tokens) => {
+          send({ type: "ai_progress", tokens });
+        });
       } catch (err) {
         console.error("[generate] generateJSON failed:", err);
         send({ type: "error", message: "Something went wrong — please try again in a few minutes." });
@@ -194,37 +196,41 @@ export async function POST(req: Request) {
             id: tripId,
           };
 
-          const promises = activityItems.map(async (item) => {
-            const payload = await buildCardPayload(
-              { id: item.id, title: item.title, category: item.category, location: item.location },
-              tripCtx,
-              cardPromptRow.template,
-              cardModel,
-              false,
-              session.user.id,
-              cardProvider,
-            );
-            if (!payload) return null;
-            const card = await insertPlaceCard({ ...payload, tripId });
-            await linkItemToCard(item.id, card.id);
-            // Stream this card to the client immediately as it resolves
-            send({
-              type: "card",
-              card: {
-                id: card.id,
-                name: card.name,
-                category: card.category ?? null,
-                verdict: card.verdict,
-                imageUrl: card.imageUrl ?? null,
-                summary: card.summary ?? null,
-              },
+          const MAX_CONCURRENCY = 6;
+          for (let i = 0; i < activityItems.length; i += MAX_CONCURRENCY) {
+            const chunk = activityItems.slice(i, i + MAX_CONCURRENCY);
+            const promises = chunk.map(async (item) => {
+              const payload = await buildCardPayload(
+                { id: item.id, title: item.title, category: item.category, location: item.location },
+                tripCtx,
+                cardPromptRow.template,
+                cardModel,
+                false,
+                session.user.id,
+                cardProvider,
+              );
+              if (!payload) return null;
+              const card = await insertPlaceCard({ ...payload, tripId });
+              await linkItemToCard(item.id, card.id);
+              // Stream this card to the client immediately as it resolves
+              send({
+                type: "card",
+                card: {
+                  id: card.id,
+                  name: card.name,
+                  category: card.category ?? null,
+                  verdict: card.verdict,
+                  imageUrl: card.imageUrl ?? null,
+                  summary: card.summary ?? null,
+                },
+              });
+              return card;
             });
-            return card;
-          });
 
-          const results = await Promise.allSettled(promises);
-          for (const r of results) {
-            if (r.status === "fulfilled" && r.value != null) cards.push(r.value);
+            const results = await Promise.allSettled(promises);
+            for (const r of results) {
+              if (r.status === "fulfilled" && r.value != null) cards.push(r.value);
+            }
           }
         }
       }

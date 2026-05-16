@@ -34,6 +34,7 @@ export function GenerateItineraryButton({
   const [error, setError] = useState<string | null>(null);
   const [tips, setTips] = useState<string[]>([]);
   const [cards, setCards] = useState<StreamedCard[]>([]);
+  const [aiTokens, setAiTokens] = useState(0);
   const [generating, setGenerating] = useState(false);
 
   async function handleGenerate() {
@@ -42,6 +43,7 @@ export function GenerateItineraryButton({
     setError(null);
     setTips([]);
     setCards([]);
+    setAiTokens(0);
     setModalOpen(true);
     setGenerating(true);
 
@@ -95,6 +97,12 @@ export function GenerateItineraryButton({
               break;
             } else if (data.type === 'tips') {
               if (Array.isArray(data.tips)) setTips(data.tips as string[]);
+            } else if (data.type === 'ai_progress') {
+              // Keep AI phase visibly active while large JSON is streaming.
+              setStepStates((prev) =>
+                prev.ai === 'done' ? prev : { ...prev, ai: 'active' },
+              );
+              if (typeof data.tokens === 'number') setAiTokens(data.tokens);
             } else if (data.type === 'card') {
               const c = data.card as StreamedCard;
               if (c?.id) setCards((prev) => [...prev, c]);
@@ -149,6 +157,7 @@ export function GenerateItineraryButton({
         error={error}
         tips={tips}
         cards={cards}
+        aiTokens={aiTokens}
         onDone={handleDone}
       />
     </>

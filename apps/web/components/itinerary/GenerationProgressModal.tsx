@@ -39,6 +39,7 @@ interface Props {
   error: string | null;
   tips?: string[];
   cards?: StreamedCard[];
+  aiTokens?: number;
   onDone: () => void;
 }
 
@@ -131,7 +132,7 @@ function LivePlaceCard({ card }: { card: StreamedCard }) {
         {card.imageUrl ? (
           <img
             src={card.imageUrl}
-            alt={card.placeName}
+            alt={card.name}
             className="w-full h-full object-cover"
             loading="lazy"
           />
@@ -162,6 +163,7 @@ export function GenerationProgressModal({
   error,
   tips,
   cards = [],
+  aiTokens = 0,
   onDone,
 }: Props) {
   const effectiveTips = tips && tips.length > 0 ? tips : FALLBACK_TIPS;
@@ -197,11 +199,15 @@ export function GenerationProgressModal({
   // Display label below the stepper
   const activeStep = STEPS.find((s) => stepStates[s.key] === 'active');
   const lastDoneStep = [...STEPS].reverse().find((s) => stepStates[s.key] === 'done');
-  const displayLabel = result
+  const baseLabel = result
     ? 'Your itinerary is ready!'
     : error
     ? 'Something went wrong — please try again in a few minutes.'
     : activeStep?.label ?? lastDoneStep?.label ?? 'Preparing…';
+  const displayLabel =
+    !result && !error && activeStep?.key === 'ai' && aiTokens > 0
+      ? `${baseLabel}  ·  ${aiTokens} tokens`
+      : baseLabel;
 
   const chips = [trip.travelStyle, trip.groupType, trip.budgetRange, trip.pacing].map(capitalize);
 
