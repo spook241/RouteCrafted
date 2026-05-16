@@ -134,18 +134,22 @@ export async function resolveEnrichment(
     return combined;
   }
 
-  // ── 3. Geoapify — POI metadata ───────────────────────────────────────────
-  const geo = await searchGeoapify(name, lat, lon, category);
+  // ── 3. Geoapify + Wikimedia — run in parallel ───────────────────────────
+  const [geoSettled, wikiSettled] = await Promise.allSettled([
+    searchGeoapify(name, lat, lon, category),
+    searchWikimedia(name, destination, category),
+  ]);
+  const geo = geoSettled.status === "fulfilled" ? geoSettled.value : null;
+  const wiki = wikiSettled.status === "fulfilled" ? wikiSettled.value : null;
   console.log(`[enrichment] geoapify: ${geo ? `category=${geo.category} rating=${geo.rating ?? "null"}` : "null"}`);
+  console.log(`[enrichment] wikimedia: ${wiki?.imageUrl ? `imageUrl=yes` : "null"}`);
 
-  // ── 4. Wikimedia — exact image ───────────────────────────────────────────
+  // ── 4. Build image result ─────────────────────────────────────────────────
   let imageResult: Pick<
     EnrichmentResult,
     "imageUrl" | "imageAttribution" | "imageIsExact" | "source"
   > | null = null;
 
-  const wiki = await searchWikimedia(name, destination, category);
-  console.log(`[enrichment] wikimedia: ${wiki?.imageUrl ? `imageUrl=yes` : "null"}`);
   if (wiki?.imageUrl) {
     imageResult = {
       source: "wikimedia",

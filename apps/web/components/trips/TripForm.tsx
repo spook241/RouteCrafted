@@ -25,6 +25,7 @@ export function TripForm() {
   const [travelStyle, setTravelStyle] = useState("cultural");
   const [groupType, setGroupType] = useState("solo");
   const [pacing, setPacing] = useState("moderate");
+  const [userNotes, setUserNotes] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -71,6 +72,7 @@ export function TripForm() {
           travelStyle,
           groupType,
           pacing,
+          userNotes: userNotes.trim() || undefined,
         }),
       });
 
@@ -188,6 +190,24 @@ export function TripForm() {
             <option value="packed">Packed</option>
           </select>
         </div>
+      </div>
+
+      {/* Special requests */}
+      <div>
+        <label className={LABEL_CLASS}>
+          Special requests
+          <span className="ml-1 font-normal normal-case tracking-normal text-on-surface-variant/60">(optional)</span>
+        </label>
+        <textarea
+          value={userNotes}
+          onChange={(e) => setUserNotes(e.target.value.slice(0, 500))}
+          rows={3}
+          placeholder="e.g. I must visit the Sagrada Família, skip large crowds, include a day trip to Montserrat…"
+          className="w-full bg-surface-container-low rounded-2xl px-4 py-3 text-on-surface text-sm font-label focus:outline-none focus:ring-2 focus:ring-primary resize-none placeholder:text-on-surface-variant/50"
+        />
+        <p className="mt-1 text-right text-[11px] font-label text-on-surface-variant/60">
+          {userNotes.length}/500
+        </p>
       </div>
 
       {error && (

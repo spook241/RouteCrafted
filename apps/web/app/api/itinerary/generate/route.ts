@@ -1,3 +1,5 @@
+export const maxDuration = 300;
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
@@ -33,112 +35,155 @@ export async function POST(req: Request) {
       { status: 409 },
     );
 
-  const startMs = new Date(trip.startDate).getTime();
-  const endMs = new Date(trip.endDate).getTime();
-  const totalDays = Math.round((endMs - startMs) / 86_400_000) + 1;
+  // Pre-flight checks passed — open SSE stream
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
 
-  // Fetch prompt template + model from DB
-  const [promptRow, settings] = await Promise.all([
-    getActivePrompt("generate_itinerary"),
-    getAllSettings(),
-  ]);
-  const model = settings.find((s) => s.key === "model")?.value;
-
-  if (!promptRow)
-    return NextResponse.json(
-      { error: "No active prompt found for generate_itinerary" },
-      { status: 503 },
-    );
-
-  const prompt = interpolate(promptRow.template, {
-    destination: trip.destination,
-    country: trip.country,
-    startDate: trip.startDate,
-    endDate: trip.endDate,
-    totalDays: String(totalDays),
-    budgetRange: trip.budgetRange,
-    travelStyle: trip.travelStyle,
-    groupType: trip.groupType,
-    pacing: trip.pacing,
-  });
-
-  let rawResponse: unknown;
-  try {
-    rawResponse = await generateJSON<unknown>(prompt, model);
-  } catch {
-    return NextResponse.json(
-      { error: "AI generation failed — check OPENROUTER_API_KEY" },
-      { status: 502 },
-    );
+  function send(data: object): void {
+    writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)).catch(() => undefined);
   }
 
-  // AI may wrap the array in a { days: [...] } object — unwrap if so
-  const candidate =
-    Array.isArray(rawResponse)
-      ? rawResponse
-      : (rawResponse as Record<string, unknown>)?.days ?? rawResponse;
+  // Run generation in a detached async block; return the stream immediately
+  (async () => {
+    try {
+      const startMs = new Date(trip.startDate).getTime();
+      const endMs = new Date(trip.endDate).getTime();
+      const totalDays = Math.round((endMs - startMs) / 86_400_000) + 1;
 
-  const validated = itineraryResponseSchema.safeParse(candidate);
-  if (!validated.success)
-    return NextResponse.json(
-      { error: "AI returned invalid structure", details: validated.error.issues },
-      { status: 422 },
-    );
+      // ── Step 1: profile — read prompt + settings ───────────────
+      const [promptRow, settings] = await Promise.all([
+        getActivePrompt("generate_itinerary"),
+        getAllSettings(),
+      ]);
 
-  const days = validated.data;
+      if (!promptRow) {
+        send({ type: "error", message: "Something went wrong — please try again in a few minutes." });
+        return;
+      }
 
-  // Bulk insert days
-  const insertedDays = await insertDays(
-    days.map((d) => ({
-      tripId,
-      dayNumber: d.dayNumber,
-      date: d.date,
-      theme: d.theme,
-      summary: d.summary,
-    })),
-  );
+      const provider = settings.find((s) => s.key === "provider")?.value ?? "openrouter";
+      const model = settings.find((s) => s.key === "model")?.value;
+      const fastModel = settings.find((s) => s.key === "model_place_card")?.value ?? model;
 
-  // Map dayNumber → inserted id
-  const dayIdMap = new Map(insertedDays.map((d) => [d.dayNumber, d.id]));
+      send({ type: "step", step: "profile", status: "done" });
 
-  // Bulk insert all items
-  const itemRows = days.flatMap((d) =>
-    d.items.map((item, idx) => ({
-      dayId: dayIdMap.get(d.dayNumber)!,
-      position: idx + 1,
-      timeBlock: item.timeBlock,
-      type: item.type,
-      category: item.category ?? null,
-      title: item.title,
-      description: item.description,
-      location: item.location,
-      durationMins: item.durationMins,
-      estimatedCost: String(item.estimatedCost),
-      isOptional: item.isOptional,
-    })),
-  );
+      // ── Tips — fire-and-forget parallel call ────────────────────
+      const tipsPrompt =
+        `You are a travel expert. Return a JSON array of exactly 6 short travel tips.` +
+        ` Trip: ${trip.destination}, ${trip.country}.` +
+        ` Style: ${trip.travelStyle} | Group: ${trip.groupType} | Budget: ${trip.budgetRange} | Pace: ${trip.pacing}.` +
+        ` Rules: one sentence each, maximum 15 words, specific to this destination and trip type, no generic clichés.` +
+        ` Return ONLY the JSON array — no markdown, no explanation.`;
 
-  const insertedItems = await insertItems(itemRows);
+      generateJSON<unknown>(tipsPrompt, fastModel, { callType: "generate_tips", tripId, userId: session.user.id }, 15_000, provider)
+        .then((raw) => {
+          const parsed = z.array(z.string().min(1)).min(4).max(8).safeParse(raw);
+          if (parsed.success) send({ type: "tips", tips: parsed.data });
+        })
+        .catch(() => undefined);
 
-  // ── Auto-generate place cards for activity items ──────────────────────────
-  const activityItems = insertedItems
-    .filter((i) => i.type === "activity")
-    .slice(0, 8);
+      const prompt = interpolate(promptRow.template, {
+        destination: trip.destination,
+        country: trip.country,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        totalDays: String(totalDays),
+        budgetRange: trip.budgetRange,
+        travelStyle: trip.travelStyle,
+        groupType: trip.groupType,
+        pacing: trip.pacing,
+        userNotes: trip.userNotes
+          ? `Traveller's special requests (treat as hard constraints — must be honoured):\n${trip.userNotes}`
+          : "",
+      });
 
-  const cards: Awaited<ReturnType<typeof insertPlaceCard>>[] = [];
+      // ── Step 2: ai — call the model ─────────────────────────────
+      send({ type: "step", step: "ai", status: "active" });
 
-  if (activityItems.length > 0) {
-    const [cardPromptRow, cardSettings] = await Promise.all([
-      getActivePrompt("place_card"),
-      getAllSettings(),
-    ]);
-    const cardModel = cardSettings.find((s) => s.key === "model")?.value;
+      let rawResponse: unknown;
+      try {
+        rawResponse = await generateJSON<unknown>(prompt, model, {
+          callType: "generate_itinerary",
+          tripId,
+          userId: session.user.id,
+        }, 120_000, provider);
+      } catch (err) {
+        console.error("[generate] generateJSON failed:", err);
+        send({ type: "error", message: "Something went wrong — please try again in a few minutes." });
+        return;
+      }
 
-    if (cardPromptRow) {
-      for (const item of activityItems) {
-        const payload = await buildCardPayload(
-          { id: item.id, title: item.title, category: item.category, location: item.location },
-          {
+      const candidate =
+        Array.isArray(rawResponse)
+          ? rawResponse
+          : (rawResponse as Record<string, unknown>)?.days ?? rawResponse;
+
+      const validated = itineraryResponseSchema.safeParse(candidate);
+      if (!validated.success) {
+        console.error("[generate] AI returned invalid structure:", validated.error.issues);
+        send({ type: "error", message: "Something went wrong — please try again in a few minutes." });
+        return;
+      }
+
+      send({ type: "step", step: "ai", status: "done" });
+
+      const days = validated.data;
+
+      // ── Step 3: schedule — save days + items to DB ──────────────
+      const insertedDays = await insertDays(
+        days.map((d) => ({
+          tripId,
+          dayNumber: d.dayNumber,
+          date: d.date,
+          theme: d.theme,
+          summary: d.summary,
+        })),
+      );
+
+      const dayIdMap = new Map(insertedDays.map((d) => [d.dayNumber, d.id]));
+
+      const itemRows = days.flatMap((d) =>
+        d.items.map((item, idx) => ({
+          dayId: dayIdMap.get(d.dayNumber)!,
+          position: idx + 1,
+          timeBlock: item.timeBlock,
+          type: item.type,
+          category: item.category ?? null,
+          title: item.title,
+          description: item.description,
+          location: item.location,
+          durationMins: item.durationMins,
+          estimatedCost: String(item.estimatedCost),
+          isOptional: item.isOptional,
+        })),
+      );
+
+      const insertedItems = await insertItems(itemRows);
+      send({ type: "step", step: "schedule", status: "done" });
+
+      // ── Steps 4+5: research + verdicts — place cards ────────────
+      const activityItems = insertedItems.filter(
+        (i) => i.type === "activity" || i.type === "meal",
+      );
+
+      const cards: Awaited<ReturnType<typeof insertPlaceCard>>[] = [];
+
+      send({ type: "step", step: "research", status: "active" });
+
+      if (activityItems.length > 0) {
+        const [cardPromptRow, cardSettings] = await Promise.all([
+          getActivePrompt("place_card"),
+          getAllSettings(),
+        ]);
+        const cardModel =
+          cardSettings.find((s) => s.key === "model_place_card")?.value ??
+          cardSettings.find((s) => s.key === "model")?.value;
+        const cardProvider =
+          cardSettings.find((s) => s.key === "provider")?.value ?? "openrouter";
+
+        if (cardPromptRow) {
+          const tripCtx = {
             destination: trip.destination,
             country: trip.country,
             lat: trip.lat,
@@ -146,24 +191,66 @@ export async function POST(req: Request) {
             travelStyle: trip.travelStyle,
             groupType: trip.groupType,
             budgetRange: trip.budgetRange,
-          },
-          cardPromptRow.template,
-          cardModel,
-        );
-        if (!payload) continue;
-        try {
-          const card = await insertPlaceCard({ ...payload, tripId });
-          await linkItemToCard(item.id, card.id);
-          cards.push(card);
-        } catch {
-          continue;
+            id: tripId,
+          };
+
+          const promises = activityItems.map(async (item) => {
+            const payload = await buildCardPayload(
+              { id: item.id, title: item.title, category: item.category, location: item.location },
+              tripCtx,
+              cardPromptRow.template,
+              cardModel,
+              false,
+              session.user.id,
+              cardProvider,
+            );
+            if (!payload) return null;
+            const card = await insertPlaceCard({ ...payload, tripId });
+            await linkItemToCard(item.id, card.id);
+            // Stream this card to the client immediately as it resolves
+            send({
+              type: "card",
+              card: {
+                id: card.id,
+                name: card.name,
+                category: card.category ?? null,
+                verdict: card.verdict,
+                imageUrl: card.imageUrl ?? null,
+                summary: card.summary ?? null,
+              },
+            });
+            return card;
+          });
+
+          const results = await Promise.allSettled(promises);
+          for (const r of results) {
+            if (r.status === "fulfilled" && r.value != null) cards.push(r.value);
+          }
         }
       }
+
+      send({ type: "step", step: "research", status: "done" });
+      send({ type: "step", step: "verdicts", status: "done" });
+
+      // ── Step 6: finalise ────────────────────────────────────────
+      await updateTrip(tripId, session.user.id, { status: "active" });
+      send({ type: "step", step: "finalise", status: "done" });
+
+      send({ type: "complete", days: insertedDays.length, cards: cards.length });
+    } catch (err) {
+      console.error("[generate] SSE generation failed:", err);
+      send({ type: "error", message: "Something went wrong — please try again in a few minutes." });
+    } finally {
+      writer.close().catch(() => undefined);
     }
-  }
+  })();
 
-  // Activate trip
-  await updateTrip(tripId, session.user.id, { status: "active" });
-
-  return NextResponse.json({ days: insertedDays, cards }, { status: 201 });
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
 }
+

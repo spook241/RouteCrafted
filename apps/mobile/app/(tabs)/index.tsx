@@ -3,14 +3,17 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  TouchableOpacity,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { apiFetch } from "@/lib/api";
+import { TripCard } from "@/components/ui/TripCard";
+import { Colors, Spacing, Typography, Radius } from "@/lib/theme";
+import { useResponsive, getItemWidth } from "@/lib/responsive";
 
 interface Trip {
   id: string;
@@ -26,6 +29,7 @@ export default function TripsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { width, numColumns, containerPadding, cardGap } = useResponsive();
 
   async function loadTrips() {
     try {
@@ -52,7 +56,7 @@ export default function TripsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -71,7 +75,7 @@ export default function TripsScreen() {
   if (trips.length === 0) {
     return (
       <View style={styles.center}>
-        <Ionicons name="map-outline" size={48} color="#334155" />
+        <Ionicons name="map-outline" size={56} color={Colors.outlineVariant} />
         <Text style={styles.emptyTitle}>No trips yet</Text>
         <Text style={styles.emptySubtitle}>
           Create a trip on the RouteCrafted website to get started.
@@ -80,42 +84,36 @@ export default function TripsScreen() {
     );
   }
 
+  const itemWidth = getItemWidth(width, numColumns, containerPadding, cardGap);
+
   return (
     <FlatList
       style={styles.list}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        { padding: containerPadding, gap: cardGap },
+      ]}
+      columnWrapperStyle={numColumns > 1 ? { gap: cardGap } : undefined}
       data={trips}
       keyExtractor={(item) => item.id}
+      numColumns={numColumns}
+      key={numColumns} // re-mount FlatList when columns change
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#3b82f6"
+          tintColor={Colors.primary}
         />
       }
       renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => router.push({ pathname: "/trip/[id]", params: { id: item.id } })}
-          activeOpacity={0.75}
-        >
-          <View style={styles.cardTop}>
-            <Text style={styles.destination}>{item.destination}</Text>
-            <View style={[styles.badge, item.status === "completed" ? styles.badgeDone : styles.badgeActive]}>
-              <Text style={styles.badgeText}>{item.status}</Text>
-            </View>
-          </View>
-          <Text style={styles.dates}>
-            {new Date(item.startDate).toLocaleDateString()} –{" "}
-            {new Date(item.endDate).toLocaleDateString()}
-          </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color="#475569"
-            style={styles.chevron}
+        <View style={{ width: numColumns > 1 ? itemWidth : undefined, flex: numColumns === 1 ? 1 : undefined }}>
+          <TripCard
+            trip={item}
+            onPress={() =>
+              router.push({ pathname: "/trip/[id]", params: { id: item.id } })
+            }
           />
-        </TouchableOpacity>
+        </View>
       )}
     />
   );
@@ -124,51 +122,36 @@ export default function TripsScreen() {
 const styles = StyleSheet.create({
   center: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: Colors.surfaceContainerLow,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: Spacing.xl,
   },
-  list: { backgroundColor: "#0f172a" },
-  listContent: { padding: 16, gap: 12 },
-  card: {
-    backgroundColor: "#1e293b",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#334155",
+  list: { backgroundColor: Colors.surfaceContainerLow },
+  listContent: {},
+  errorText: {
+    ...Typography.bodyMd,
+    color: Colors.error,
+    marginBottom: Spacing.md,
+    textAlign: "center",
   },
-  cardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  destination: {
-    color: "#f1f5f9",
-    fontSize: 16,
-    fontWeight: "600",
-    flex: 1,
-    marginRight: 8,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 99,
-  },
-  badgeActive: { backgroundColor: "#1d4ed8" },
-  badgeDone: { backgroundColor: "#14532d" },
-  badgeText: { color: "#fff", fontSize: 11, fontWeight: "500" },
-  dates: { color: "#94a3b8", fontSize: 13 },
-  chevron: { position: "absolute", right: 16, top: 16 },
-  errorText: { color: "#f87171", marginBottom: 12, textAlign: "center" },
   retryBtn: {
-    backgroundColor: "#1d4ed8",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.full,
   },
-  retryText: { color: "#fff", fontWeight: "600" },
-  emptyTitle: { color: "#94a3b8", fontSize: 18, fontWeight: "600", marginTop: 16 },
-  emptySubtitle: { color: "#64748b", fontSize: 14, textAlign: "center", marginTop: 8 },
+  retryText: { ...Typography.titleSm, color: Colors.white },
+  emptyTitle: {
+    ...Typography.headlineSm,
+    color: Colors.onSurfaceVariant,
+    marginTop: Spacing.lg,
+  },
+  emptySubtitle: {
+    ...Typography.bodyMd,
+    color: Colors.outline,
+    textAlign: "center",
+    marginTop: Spacing.sm,
+    maxWidth: 260,
+  },
 });

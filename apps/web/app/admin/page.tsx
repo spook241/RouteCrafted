@@ -114,6 +114,18 @@ export default async function AdminPage() {
               </p>
             </div>
           </Link>
+
+          <Link href="/admin/telemetry" className="group block">
+            <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-card hover:shadow-card-hover transition-shadow">
+              <span className="material-symbols-outlined text-primary text-[32px] mb-3 block" style={{ fontVariationSettings: "'FILL' 1" }}>bar_chart</span>
+              <h2 className="font-headline font-bold text-on-surface text-lg group-hover:text-primary transition-colors">
+                AI Telemetry
+              </h2>
+              <p className="text-on-surface-variant text-sm mt-1">
+                Token usage, latency, and cost per trip and per AI call type.
+              </p>
+            </div>
+          </Link>
         </div>
       </div>
     </div>

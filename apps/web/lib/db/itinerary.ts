@@ -37,6 +37,20 @@ export async function getDayWithItems(tripId: string, dayNumber: number) {
   return { ...day, items };
 }
 
+export async function getDaysWithItemsByTrip(tripId: string) {
+  const days = await getDaysByTrip(tripId);
+  return Promise.all(
+    days.map(async (day) => {
+      const items = await db
+        .select()
+        .from(itineraryItems)
+        .where(eq(itineraryItems.dayId, day.id))
+        .orderBy(asc(itineraryItems.position));
+      return { ...day, items };
+    }),
+  );
+}
+
 // ─── Inserts ──────────────────────────────────────────────────────────────────
 
 export async function insertDays(

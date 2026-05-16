@@ -5,10 +5,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  TouchableOpacity,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { apiFetch } from "@/lib/api";
+import { Colors, Radius, Spacing, Shadows, Typography } from "@/lib/theme";
+import { useResponsive } from "@/lib/responsive";
 
 interface PlaceCard {
   id: string;
@@ -32,13 +34,11 @@ export default function CardScreen() {
   const [card, setCard] = useState<PlaceCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { containerPadding } = useResponsive();
 
   useEffect(() => {
     (async () => {
       try {
-        // The id here IS the placeCardId — we call a dedicated endpoint
-        // GET /api/mobile/cards/:cardId  (single card, no tripId needed)
-        // Fallback: we added that endpoint. If not, gracefully handle.
         const data = await apiFetch<PlaceCard>(`/api/mobile/card/${id}`);
         setCard(data);
       } catch (e) {
@@ -52,7 +52,7 @@ export default function CardScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -66,62 +66,84 @@ export default function CardScreen() {
   }
 
   const isWorthIt = card.verdict === "worth_it";
+  const isDepends = card.verdict === "depends";
+
+  const bannerColors = isWorthIt
+    ? (["#14532d", "#166534"] as const)
+    : isDepends
+    ? (["#713f12", "#92400e"] as const)
+    : (["#7f1d1d", "#991b1b"] as const);
+
+  const bannerEmoji = isWorthIt ? "⭐" : isDepends ? "🤔" : "⚠️";
+  const bannerLabel = isWorthIt ? "Worth It" : isDepends ? "Depends" : "Skip It";
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.titleRow}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { gap: Spacing.lg }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Verdict banner */}
+      <LinearGradient colors={bannerColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.banner}>
+        <Text style={styles.bannerEmoji}>{bannerEmoji}</Text>
+        <Text style={styles.bannerLabel}>{bannerLabel}</Text>
+      </LinearGradient>
+
+      {/* Body */}
+      <View style={[styles.bodyPad, { paddingHorizontal: containerPadding }]}>
+        {/* Place name + category */}
         <Text style={styles.placeName}>{card.placeName}</Text>
-        <View style={[styles.badge, isWorthIt ? styles.badgeWorth : styles.badgeSkip]}>
-          <Text style={styles.badgeText}>
-            {isWorthIt ? "Worth It ✓" : "Skip It ✗"}
-          </Text>
+        <View style={styles.categoryChip}>
+          <Text style={styles.categoryText}>{card.category.replace(/_/g, " ")}</Text>
         </View>
-      </View>
 
-      <Text style={styles.category}>{card.category.replace(/_/g, " ")}</Text>
-
-      {card.summary && <Text style={styles.summary}>{card.summary}</Text>}
-
-      {/* Meta */}
-      <View style={styles.metaRow}>
-        {card.estimatedCost && (
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaText}>💰 {card.estimatedCost}</Text>
+        {/* Summary */}
+        {card.summary ? (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryText}>{card.summary}</Text>
           </View>
-        )}
-        {card.bestTimeToVisit && (
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaText}>🕐 {card.bestTimeToVisit}</Text>
+        ) : null}
+
+        {/* Meta chips */}
+        <View style={styles.metaRow}>
+          {card.estimatedCost ? (
+            <View style={styles.metaChip}>
+              <Text style={styles.metaChipText}>💰 {card.estimatedCost}</Text>
+            </View>
+          ) : null}
+          {card.bestTimeToVisit ? (
+            <View style={styles.metaChip}>
+              <Text style={styles.metaChipText}>🕐 {card.bestTimeToVisit}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Why Visit */}
+        {card.worthItReasons.length > 0 ? (
+          <View style={[styles.section, styles.sectionWorth]}>
+            <Text style={[styles.sectionTitle, styles.sectionTitleWorth]}>Why Visit</Text>
+            {card.worthItReasons.map((r, i) => (
+              <View key={i} style={styles.reasonRow}>
+                <Text style={[styles.bullet, styles.bulletWorth]}>✓</Text>
+                <Text style={styles.reasonText}>{r}</Text>
+              </View>
+            ))}
           </View>
-        )}
+        ) : null}
+
+        {/* Consider Skipping */}
+        {card.skipItReasons.length > 0 ? (
+          <View style={[styles.section, styles.sectionSkip]}>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSkip]}>Consider Skipping If</Text>
+            {card.skipItReasons.map((r, i) => (
+              <View key={i} style={styles.reasonRow}>
+                <Text style={[styles.bullet, styles.bulletSkip]}>✕</Text>
+                <Text style={styles.reasonText}>{r}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
-
-      {/* Worth It reasons */}
-      {card.worthItReasons.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Why Visit</Text>
-          {card.worthItReasons.map((r, i) => (
-            <View key={i} style={styles.reasonRow}>
-              <Text style={styles.reasonBullet}>✓</Text>
-              <Text style={styles.reasonText}>{r}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Skip It reasons */}
-      {card.skipItReasons.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Consider Skipping If</Text>
-          {card.skipItReasons.map((r, i) => (
-            <View key={i} style={styles.reasonRow}>
-              <Text style={[styles.reasonBullet, styles.reasonBulletSkip]}>✗</Text>
-              <Text style={styles.reasonText}>{r}</Text>
-            </View>
-          ))}
-        </View>
-      )}
     </ScrollView>
   );
 }
@@ -129,56 +151,63 @@ export default function CardScreen() {
 const styles = StyleSheet.create({
   center: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: Colors.surfaceContainerLow,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: Spacing.xl,
   },
-  container: { flex: 1, backgroundColor: "#0f172a" },
-  content: { padding: 20 },
-  titleRow: {
+  container: { flex: 1, backgroundColor: Colors.surfaceContainerLow },
+  content: { paddingBottom: Spacing.xxl },
+  banner: {
+    paddingVertical: Spacing.xl + 4,
+    paddingHorizontal: Spacing.xl,
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 4,
+    alignItems: "center",
+    gap: Spacing.md,
   },
-  placeName: { color: "#f1f5f9", fontSize: 22, fontWeight: "700", flex: 1, marginRight: 8 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 },
-  badgeWorth: { backgroundColor: "#14532d" },
-  badgeSkip: { backgroundColor: "#7f1d1d" },
-  badgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  category: { color: "#64748b", fontSize: 13, marginBottom: 12, textTransform: "capitalize" },
-  summary: {
-    color: "#94a3b8",
-    fontSize: 14,
-    lineHeight: 21,
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+  bannerEmoji: { fontSize: 28 },
+  bannerLabel: { ...Typography.displayMd, color: Colors.white },
+  bodyPad: { gap: Spacing.lg },
+  placeName: { ...Typography.displayLg, color: Colors.onSurface },
+  categoryChip: {
+    alignSelf: "flex-start",
+    backgroundColor: Colors.surfaceContainer,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
   },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
-  metaBadge: {
-    backgroundColor: "#1e293b",
-    borderWidth: 1,
-    borderColor: "#334155",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  categoryText: { ...Typography.labelMd, color: Colors.onSurfaceVariant, textTransform: "capitalize" },
+  summaryCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    ...Shadows.card,
   },
-  metaText: { color: "#cbd5e1", fontSize: 13 },
+  summaryText: { ...Typography.bodyLg, color: Colors.onSurfaceVariant, lineHeight: 24 },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
+  metaChip: {
+    backgroundColor: Colors.surfaceContainer,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+  },
+  metaChipText: { ...Typography.bodyMd, color: Colors.onSurfaceVariant },
   section: {
-    backgroundColor: "#1e293b",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#334155",
-    padding: 14,
-    marginBottom: 12,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+    ...Shadows.card,
   },
-  sectionTitle: { color: "#f1f5f9", fontWeight: "700", fontSize: 15, marginBottom: 10 },
-  reasonRow: { flexDirection: "row", gap: 8, marginBottom: 6 },
-  reasonBullet: { color: "#22c55e", fontWeight: "700", fontSize: 14, width: 16 },
-  reasonBulletSkip: { color: "#ef4444" },
-  reasonText: { color: "#94a3b8", fontSize: 13, flex: 1, lineHeight: 20 },
-  errorText: { color: "#f87171", textAlign: "center", fontSize: 14 },
+  sectionWorth: { borderLeftWidth: 3, borderLeftColor: "#166534" },
+  sectionSkip: { borderLeftWidth: 3, borderLeftColor: "#991b1b" },
+  sectionTitle: { ...Typography.titleMd, marginBottom: Spacing.xs },
+  sectionTitleWorth: { color: "#166534" },
+  sectionTitleSkip: { color: "#991b1b" },
+  reasonRow: { flexDirection: "row", gap: Spacing.sm, alignItems: "flex-start" },
+  bullet: { ...Typography.titleSm, width: 16 },
+  bulletWorth: { color: Colors.worthItText },
+  bulletSkip: { color: Colors.skipItText },
+  reasonText: { ...Typography.bodyMd, color: Colors.onSurfaceVariant, flex: 1, lineHeight: 21 },
+  errorText: { ...Typography.bodyMd, color: Colors.error, textAlign: "center" },
 });

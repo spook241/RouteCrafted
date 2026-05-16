@@ -189,7 +189,20 @@ export default async function TripDetailPage({ params }: Props) {
                 <p className="text-on-surface-variant text-sm mb-8 max-w-sm mx-auto">
                   Our AI will generate a day-by-day itinerary tailored to your preferences.
                 </p>
-                <GenerateItineraryButton tripId={id} />
+                <GenerateItineraryButton
+                  tripId={id}
+                  trip={{
+                    destination: trip.destination,
+                    country: trip.country,
+                    startDate: trip.startDate,
+                    endDate: trip.endDate,
+                    travelStyle: trip.travelStyle,
+                    groupType: trip.groupType,
+                    budgetRange: trip.budgetRange,
+                    pacing: trip.pacing,
+                    coverImageUrl: trip.coverImageUrl ?? null,
+                  }}
+                />
               </div>
             )}
 

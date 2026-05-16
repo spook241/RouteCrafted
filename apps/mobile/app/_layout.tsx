@@ -47,18 +47,19 @@ function RootGuard() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" }}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f9f9ff" }}>
+        <ActivityIndicator size="large" color="#0058be" />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: "#0f172a" }, headerTintColor: "#fff" }}>
+    <Stack screenOptions={{ headerStyle: { backgroundColor: "#ffffff" }, headerTintColor: "#111c2d" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="trip/[id]" options={{ title: "Trip Detail" }} />
       <Stack.Screen name="card/[id]" options={{ title: "Place Card" }} />
+      <Stack.Screen name="cards/[tripId]" options={{ title: "Place Cards" }} />
     </Stack>
   );
 }
@@ -67,7 +68,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <RootGuard />
       </AuthProvider>
     </SafeAreaProvider>

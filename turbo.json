@@ -12,6 +12,11 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "mobile#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "env": ["EXPO_PUBLIC_API_URL"]
+    },
     "web#build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**"],

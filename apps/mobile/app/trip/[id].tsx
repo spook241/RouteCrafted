@@ -11,6 +11,11 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { apiFetch } from "@/lib/api";
+import { DayCard } from "@/components/ui/DayCard";
+import { StatusBadge } from "@/components/ui/Badge";
+import { GradientButton } from "@/components/ui/GradientButton";
+import { Colors, Radius, Spacing, Shadows, Typography } from "@/lib/theme";
+import { useResponsive } from "@/lib/responsive";
 
 interface ItineraryItem {
   id: string;
@@ -45,6 +50,7 @@ export default function TripDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { containerPadding } = useResponsive();
 
   async function loadTrip() {
     try {
@@ -66,7 +72,7 @@ export default function TripDetailScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -82,86 +88,69 @@ export default function TripDetailScreen() {
     );
   }
 
+  const days = trip.days ?? [];
+
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { padding: containerPadding, gap: Spacing.lg }]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => { setRefreshing(true); loadTrip(); }}
-          tintColor="#3b82f6"
+          tintColor={Colors.primary}
         />
       }
+      showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.destination}>{trip.destination}</Text>
-        <View style={[styles.badge, trip.status === "completed" ? styles.badgeDone : styles.badgeActive]}>
-          <Text style={styles.badgeText}>{trip.status}</Text>
+      {/* Hero card */}
+      <View style={styles.heroCard}>
+        <View style={styles.heroTop}>
+          <Text style={styles.destination}>{trip.destination}</Text>
+          <StatusBadge status={trip.status as "draft" | "active" | "completed" | "planned"} />
         </View>
-      </View>
-      <Text style={styles.dates}>
-        {new Date(trip.startDate).toLocaleDateString()} –{" "}
-        {new Date(trip.endDate).toLocaleDateString()}
-      </Text>
+        <View style={styles.datesRow}>
+          <Ionicons name="calendar-outline" size={14} color={Colors.onSurfaceVariant} />
+          <Text style={styles.dates}>
+            {new Date(trip.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+            {" – "}
+            {new Date(trip.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+          </Text>
+        </View>
 
-      {trip.notes && <Text style={styles.notes}>{trip.notes}</Text>}
-
-      {/* Days */}
-      {trip.days.length === 0 ? (
-        <Text style={styles.emptyMsg}>
-          No itinerary generated yet. Visit the website to generate your plan.
-        </Text>
-      ) : (
-        trip.days.map((day) => (
-          <View key={day.id} style={styles.dayCard}>
-            <View style={styles.dayHeader}>
-              <Text style={styles.dayTitle}>Day {day.dayNumber}</Text>
-              <Text style={styles.dayDate}>
-                {new Date(day.date).toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </Text>
-            </View>
-
-            {day.weatherSummary && (
-              <Text style={styles.weather}>🌤 {day.weatherSummary}</Text>
-            )}
-
-            {day.items.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.itemRow}
-                onPress={() =>
-                  item.placeCardId
-                    ? router.push({ pathname: "/card/[id]", params: { id: item.placeCardId } })
-                    : null
-                }
-                activeOpacity={item.placeCardId ? 0.7 : 1}
-              >
-                <View style={styles.itemLeft}>
-                  {item.startTime && (
-                    <Text style={styles.itemTime}>{item.startTime}</Text>
-                  )}
-                  <Text style={styles.itemTitle}>{item.title}</Text>
-                  {item.description && (
-                    <Text style={styles.itemDesc} numberOfLines={2}>
-                      {item.description}
-                    </Text>
-                  )}
-                  {item.estimatedCost && (
-                    <Text style={styles.itemCost}>~{item.estimatedCost}</Text>
-                  )}
-                </View>
-                {item.placeCardId && (
-                  <Ionicons name="chevron-forward" size={16} color="#475569" />
-                )}
-              </TouchableOpacity>
-            ))}
+        {trip.notes ? (
+          <View style={styles.notesCard}>
+            <Text style={styles.notesText}>{trip.notes}</Text>
           </View>
+        ) : null}
+
+        {days.length > 0 && (
+          <GradientButton
+            variant="outline"
+            label="View Place Cards"
+            onPress={() => router.push(`/cards/${trip.id}` as "/cards/[tripId]")}
+            style={styles.placeCardsBtn}
+          />
+        )}
+      </View>
+
+      {/* Itinerary */}
+      {days.length === 0 ? (
+        <View style={styles.emptyDays}>
+          <Ionicons name="map-outline" size={40} color={Colors.outlineVariant} />
+          <Text style={styles.emptyMsg}>
+            No itinerary yet. Visit the website to generate your plan.
+          </Text>
+        </View>
+      ) : (
+        days.map((day) => (
+          <DayCard
+            key={day.id}
+            day={day}
+            onItemPress={(placeCardId) =>
+              router.push({ pathname: "/card/[id]", params: { id: placeCardId } })
+            }
+          />
         ))
       )}
     </ScrollView>
@@ -171,75 +160,61 @@ export default function TripDetailScreen() {
 const styles = StyleSheet.create({
   center: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: Colors.surfaceContainerLow,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: Spacing.xl,
   },
-  container: { flex: 1, backgroundColor: "#0f172a" },
-  content: { padding: 16 },
-  header: {
+  container: { flex: 1, backgroundColor: Colors.surfaceContainerLow },
+  content: {},
+  heroCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: Radius.xxl,
+    padding: Spacing.xl,
+    gap: Spacing.md,
+    ...Shadows.card,
+  },
+  heroTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 4,
+    gap: Spacing.sm,
   },
   destination: {
-    color: "#f1f5f9",
-    fontSize: 22,
-    fontWeight: "700",
+    ...Typography.displayMd,
+    color: Colors.onSurface,
     flex: 1,
-    marginRight: 8,
   },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
-  badgeActive: { backgroundColor: "#1d4ed8" },
-  badgeDone: { backgroundColor: "#14532d" },
-  badgeText: { color: "#fff", fontSize: 11, fontWeight: "500" },
-  dates: { color: "#94a3b8", fontSize: 13, marginBottom: 8 },
-  notes: {
-    color: "#94a3b8",
-    fontSize: 13,
-    backgroundColor: "#1e293b",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-  },
-  emptyMsg: { color: "#64748b", textAlign: "center", marginTop: 32, fontSize: 14 },
-  dayCard: {
-    backgroundColor: "#1e293b",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#334155",
-    padding: 14,
-    marginBottom: 12,
-  },
-  dayHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  dayTitle: { color: "#f1f5f9", fontWeight: "700", fontSize: 15 },
-  dayDate: { color: "#64748b", fontSize: 13 },
-  weather: { color: "#94a3b8", fontSize: 12, marginBottom: 8 },
-  itemRow: {
+  datesRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#1e293b",
-    gap: 8,
+    gap: Spacing.xs,
   },
-  itemLeft: { flex: 1 },
-  itemTime: { color: "#3b82f6", fontSize: 11, marginBottom: 2 },
-  itemTitle: { color: "#e2e8f0", fontSize: 14, fontWeight: "600" },
-  itemDesc: { color: "#64748b", fontSize: 12, marginTop: 2 },
-  itemCost: { color: "#22c55e", fontSize: 12, marginTop: 2 },
-  errorText: { color: "#f87171", marginBottom: 12, textAlign: "center" },
+  dates: { ...Typography.bodyMd, color: Colors.onSurfaceVariant },
+  notesCard: {
+    backgroundColor: Colors.surfaceContainer,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+  },
+  notesText: { ...Typography.bodyMd, color: Colors.onSurfaceVariant, fontStyle: "italic" },
+  placeCardsBtn: { marginTop: Spacing.xs },
+  emptyDays: {
+    alignItems: "center",
+    paddingVertical: Spacing.xxl,
+    gap: Spacing.md,
+  },
+  emptyMsg: {
+    ...Typography.bodyMd,
+    color: Colors.outline,
+    textAlign: "center",
+    maxWidth: 260,
+  },
+  errorText: { ...Typography.bodyMd, color: Colors.error, marginBottom: Spacing.md, textAlign: "center" },
   retryBtn: {
-    backgroundColor: "#1d4ed8",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.full,
   },
-  retryText: { color: "#fff", fontWeight: "600" },
+  retryText: { ...Typography.titleSm, color: Colors.white },
 });

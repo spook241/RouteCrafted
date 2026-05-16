@@ -24,7 +24,8 @@
       "package": "com.routecrafted.app"
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static"
     },
     "plugins": [
       "expo-router",

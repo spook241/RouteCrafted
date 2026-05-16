@@ -49,9 +49,37 @@ const config: Config = {
         card: "0 8px 32px rgba(17,28,45,0.04)",
         "card-hover": "0 12px 40px rgba(17,28,45,0.08)",
       },
+      keyframes: {
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-in-up": "fade-in-up 0.35s ease-out both",
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    // scrollbar-hide utility
+    function ({ addUtilities }: { addUtilities: (u: Record<string, Record<string, string>>) => void }) {
+      addUtilities({
+        ".scrollbar-hide": {
+          "-ms-overflow-style": "none",
+          "scrollbar-width": "none",
+        },
+        ".scrollbar-hide::-webkit-scrollbar": {
+          display: "none",
+        },
+        ".line-clamp-2": {
+          overflow: "hidden",
+          display: "-webkit-box",
+          "-webkit-box-orient": "vertical",
+          "-webkit-line-clamp": "2",
+        },
+      });
+    },
+  ],
 };
 
 export default config;

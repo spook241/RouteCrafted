@@ -15,6 +15,7 @@ export type TripContext = {
   travelStyle: string;
   groupType: string;
   budgetRange: string;
+  id?: string; // tripId for telemetry
 };
 
 export type ItemContext = {
@@ -34,6 +35,8 @@ export async function buildCardPayload(
   promptTemplate: string,
   model?: string,
   bypassCache = false,
+  userId?: string,
+  provider = "openrouter",
 ): Promise<Omit<PlaceCardInsert, "tripId"> | null> {
   try {
     const tripLat = trip.lat ? parseFloat(trip.lat) : 0;
@@ -61,8 +64,21 @@ export async function buildCardPayload(
       budgetRange: trip.budgetRange,
     });
 
-    const raw = await generateJSON<PlaceCardResponse>(prompt, model);
-    const validated = placeCardResponseSchema.parse(raw);
+    const raw = await generateJSON<PlaceCardResponse>(prompt, model, {
+      callType: "place_card",
+      tripId: trip.id,
+      itemId: item.id,
+      userId,
+    }, 25_000, provider);
+    const result = placeCardResponseSchema.safeParse(raw);
+    if (!result.success) {
+      console.error(
+        `[card-generator] Schema validation failed for "${item.title}":`,
+        result.error.issues,
+      );
+      return null;
+    }
+    const validated = result.data;
 
     return {
       name: item.title,
@@ -89,7 +105,8 @@ export async function buildCardPayload(
       externalPlaceId: enrichment.providerId ?? null,
       enrichedAt: new Date(),
     };
-  } catch {
+  } catch (err) {
+    console.error(`[card-generator] buildCardPayload failed for "${item.title}":`, err);
     return null;
   }
 }

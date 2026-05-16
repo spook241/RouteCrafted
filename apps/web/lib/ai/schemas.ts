@@ -35,8 +35,8 @@ export type ItineraryResponse = z.infer<typeof itineraryResponseSchema>;
 export const placeCardResponseSchema = z.object({
   verdict: z.enum(["worth_it", "skip_it", "depends"]),
   summary: z.string().min(1),
-  worthItReasons: z.array(z.string()).min(1),
-  skipItReasons: z.array(z.string()).min(1),
+  worthItReasons: z.array(z.string()),
+  skipItReasons: z.array(z.string()),
   bestFor: z.string().min(1),
   costLevel: z.enum(["free", "low", "medium", "high"]),
   timeNeeded: z.string().min(1),

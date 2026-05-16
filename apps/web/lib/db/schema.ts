@@ -47,6 +47,7 @@ export const trips = pgTable("trips", {
   rating: integer("rating"), // 1–5, user rating after trip
   comment: text("comment"), // short post-trip comment
   itineraryStale: boolean("itinerary_stale").notNull().default(false), // true when prefs changed after generation
+  userNotes: text("user_notes"), // free-text pre-planning remarks from the user
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { eq, inArray } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getTripById } from "@/lib/db/trips";
 import {
@@ -12,6 +13,10 @@ import { getActivePrompt, getAllSettings } from "@/lib/db/ai-config";
 import { generateJSON } from "@/lib/ai/openrouter";
 import { interpolate } from "@/lib/ai/interpolate";
 import { rewriteDayResponseSchema } from "@/lib/ai/schemas";
+import { db } from "@/lib/db";
+import { itineraryItems, placeCards } from "@/lib/db/schema";
+import { insertPlaceCard, linkItemToCard } from "@/lib/db/places";
+import { buildCardPayload } from "@/lib/places/card-generator";
 
 const bodySchema = z.object({
   tripId: z.string().uuid(),
@@ -50,6 +55,7 @@ export async function POST(req: Request) {
     );
 
   const model = settings.find((s) => s.key === "model")?.value;
+  const provider = settings.find((s) => s.key === "provider")?.value ?? "openrouter";
   const weatherContextTpl =
     settings.find((s) => s.key === "rewrite_day_weather_context")?.value ?? "";
   const reasonContextTpl =
@@ -81,10 +87,16 @@ export async function POST(req: Request) {
 
   let rawResponse: unknown;
   try {
-    rawResponse = await generateJSON<unknown>(prompt, model);
-  } catch {
+    rawResponse = await generateJSON<unknown>(prompt, model, {
+      callType: "rewrite_day",
+      tripId,
+      dayId,
+      userId: session.user.id,
+    }, 60_000, provider);
+  } catch (err) {
+    console.error("[rewrite-day] generateJSON failed:", err);
     return NextResponse.json(
-      { error: "AI generation failed — check OPENROUTER_API_KEY" },
+      { error: "AI generation failed — check your API key in .env.local" },
       { status: 502 },
     );
   }
@@ -98,19 +110,34 @@ export async function POST(req: Request) {
 
   const newDay = validated.data;
 
+  // Delete place cards that were linked to this day's items (prevent orphans)
+  const oldItems = await db
+    .select({ placeCardId: itineraryItems.placeCardId })
+    .from(itineraryItems)
+    .where(eq(itineraryItems.dayId, dayId));
+  const orphanCardIds = oldItems
+    .map((i) => i.placeCardId)
+    .filter((id): id is string => id != null);
+  if (orphanCardIds.length > 0) {
+    await db.delete(placeCards).where(inArray(placeCards.id, orphanCardIds));
+  }
+
   await deleteDayItems(dayId);
-  await insertItems(
+  const newItems = await insertItems(
     newDay.items.map((item, idx) => ({
       dayId,
       position: idx + 1,
       timeBlock: item.timeBlock,
       type: item.type,
+      category: item.category ?? null,
       title: item.title,
       description: item.description,
       location: item.location,
       durationMins: item.durationMins,
       estimatedCost: String(item.estimatedCost),
       isOptional: item.isOptional,
+      tips: item.tips ?? null,
+      bookingRequired: item.bookingRequired ?? false,
     })),
   );
 
@@ -121,6 +148,44 @@ export async function POST(req: Request) {
     ...(weatherLabel !== undefined && { weatherLabel }),
     ...(forecastCode !== undefined && { weatherCode: forecastCode }),
   });
+
+  // Auto-generate place cards for the new items (parallel)
+  const cardPromptRow = await getActivePrompt("place_card");
+  if (cardPromptRow) {
+    const cardModel =
+      settings.find((s) => s.key === "model_place_card")?.value ??
+      settings.find((s) => s.key === "model")?.value;
+    const cardProvider = settings.find((s) => s.key === "provider")?.value ?? "openrouter";
+    const cardCandidates = newItems.filter(
+      (i) => i.type === "activity" || i.type === "meal",
+    );
+    const tripCtx = {
+      destination: trip.destination,
+      country: trip.country,
+      lat: trip.lat,
+      long: trip.long,
+      travelStyle: trip.travelStyle,
+      groupType: trip.groupType,
+      budgetRange: trip.budgetRange,
+      id: tripId,
+    };
+    await Promise.allSettled(
+      cardCandidates.map(async (item) => {
+        const payload = await buildCardPayload(
+          { id: item.id, title: item.title, category: item.category, location: item.location },
+          tripCtx,
+          cardPromptRow.template,
+          cardModel,
+          false,
+          session.user.id,
+          cardProvider,
+        );
+        if (!payload || payload.verdict !== "worth_it") return;
+        const card = await insertPlaceCard({ ...payload, tripId });
+        await linkItemToCard(item.id, card.id);
+      }),
+    );
+  }
 
   return NextResponse.json({ day: updatedDay });
 }

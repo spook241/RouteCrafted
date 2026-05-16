@@ -20,6 +20,7 @@ export const PROMPT_VARIABLES: Record<string, string[]> = {
     "travelStyle",
     "groupType",
     "pacing",
+    "userNotes",
   ],
   rewrite_day: [
     "destination",
@@ -55,6 +56,12 @@ export const SETTING_VARIABLES: Record<string, string[]> = {
 
 const DEFAULT_GENERATE_TEMPLATE = `You are a professional travel planner. Create a detailed day-by-day itinerary for the following trip.
 
+IMPORTANT RULES — follow strictly:
+- Do NOT include hotel check-in/check-out, airport arrivals/departures, flights, or any accommodation logistics.
+- Do NOT plan transport to/from the airport or any inter-city travel.
+- Every item must be a real on-the-ground experience: sightseeing, dining, leisure, or local transit between nearby attractions.
+- Focus on what to SEE, DO, and EAT — not where to sleep or how to arrive.
+
 Trip details:
 - Destination: {{destination}}, {{country}}
 - Start Date: {{startDate}}
@@ -74,8 +81,8 @@ Return a JSON object with a "days" array. Each day must have:
 
 Each item must have:
 - timeBlock: one of "morning", "afternoon", "evening"
-- type: one of "activity", "meal", "transport"
-- category: one of "museum", "landmark", "historic", "park", "nature", "restaurant", "cafe", "bar", "bakery", "hotel", "neighborhood", "shopping", "beach", "viewpoint", "activity", "attraction", "transport"
+- type: one of "activity", "meal"
+- category: one of "museum", "landmark", "historic", "park", "nature", "restaurant", "cafe", "bar", "bakery", "neighborhood", "shopping", "beach", "viewpoint", "activity", "attraction"
 - title (name of the place or activity)
 - description (2-3 sentences with useful details)
 - location (address or area)
@@ -87,6 +94,7 @@ Each item must have:
 
 Pacing guide: relaxed = 2-3 items/day, moderate = 3-4 items/day, packed = 5-6 items/day.
 Budget guide: budget = under $30/day activities, mid = $30-$100/day, luxury = $100+/day.
+{{userNotes}}
 Return ONLY valid JSON.`;
 
 const DEFAULT_REWRITE_TEMPLATE = `You are a professional travel planner. Rewrite the itinerary for one day of a trip to {{destination}}, {{country}}.
@@ -143,9 +151,19 @@ Respond with a JSON object (no markdown):
 
 const DEFAULT_SETTINGS = [
   {
+    key: "provider",
+    value: "openrouter",
+    description: "AI provider — openai or openrouter. API key must be set in .env.local (OPENAI_API_KEY or OPENROUTER_API_KEY).",
+  },
+  {
     key: "model",
     value: "deepseek/deepseek-chat",
-    description: "OpenRouter model identifier used for all AI calls",
+    description: "Model identifier used for itinerary generation and day rewrites",
+  },
+  {
+    key: "model_place_card",
+    value: "google/gemini-2.0-flash-001",
+    description: "Model identifier used for place card generation — fast model recommended",
   },
   {
     key: "rewrite_day_weather_context",

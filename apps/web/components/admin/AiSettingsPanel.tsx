@@ -4,11 +4,26 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AiSetting } from "@/lib/db/ai-config";
 import { SETTING_VARIABLES } from "@/lib/db/ai-config";
+import { PROVIDER_MODELS } from "@/lib/ai/openrouter";
 
 const SETTING_LABELS: Record<string, string> = {
-  model: "LLM Model",
+  provider: "AI Provider",
+  model: "Model (Itinerary & Rewrite)",
+  model_place_card: "Model (Place Cards)",
   rewrite_day_weather_context: "Weather Context Template",
   rewrite_day_reason_context: "Reason Context Template",
+};
+
+/** Keys that render as a <select> in the edit form */
+const SETTING_SELECT_OPTIONS: Record<string, string[]> = {
+  provider: ["openrouter", "openai"],
+};
+
+/** Hint text shown under the field when editing */
+const SETTING_HINTS: Record<string, string> = {
+  provider: "OpenRouter → set OPENROUTER_API_KEY in .env.local   •   OpenAI → set OPENAI_API_KEY in .env.local",
+  model: "Model identifier for itinerary generation and day rewrites",
+  model_place_card: "Model identifier for place card generation (fast model recommended)",
 };
 
 export function AiSettingsPanel({ settings }: { settings: AiSetting[] }) {
@@ -53,8 +68,15 @@ export function AiSettingsPanel({ settings }: { settings: AiSetting[] }) {
     }
   }
 
+  // Derive the current provider value for showing model suggestions
+  const currentProvider =
+    settings.find((s) => s.key === "provider")?.value ?? "openrouter";
+  const suggestedModels = PROVIDER_MODELS[currentProvider] ?? [];
+
   const isLong = (key: string) =>
     key === "rewrite_day_weather_context" || key === "rewrite_day_reason_context";
+
+  const isSelect = (key: string) => key in SETTING_SELECT_OPTIONS;
 
   return (
     <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-card">
@@ -102,7 +124,17 @@ export function AiSettingsPanel({ settings }: { settings: AiSetting[] }) {
 
             {editingKey === s.key ? (
               <div className="mt-2 space-y-2">
-                {isLong(s.key) ? (
+                {isSelect(s.key) ? (
+                  <select
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="w-full bg-surface-container-low rounded-2xl px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    {SETTING_SELECT_OPTIONS[s.key].map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : isLong(s.key) ? (
                   <textarea
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
@@ -116,6 +148,26 @@ export function AiSettingsPanel({ settings }: { settings: AiSetting[] }) {
                     onChange={(e) => setEditValue(e.target.value)}
                     className="w-full bg-surface-container-low rounded-2xl px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
+                )}
+                {SETTING_HINTS[s.key] && (
+                  <p className="text-xs text-on-surface-variant">{SETTING_HINTS[s.key]}</p>
+                )}
+                {(s.key === "model" || s.key === "model_place_card") && suggestedModels.length > 0 && (
+                  <div>
+                    <p className="text-xs text-on-surface-variant mb-1">Suggested for <strong>{currentProvider}</strong>:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {suggestedModels.map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setEditValue(m)}
+                          className="text-xs bg-surface-container rounded-full px-2.5 py-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 <div className="flex gap-2">
                   <button

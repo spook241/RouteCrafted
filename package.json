@@ -11,6 +11,8 @@
     "lint": "turbo lint"
   },
   "devDependencies": {
+    "expo": "~55.0.24",
+
     "turbo": "^2.3.3"
   },
   "engines": {
@@ -20,9 +22,12 @@
   "dependencies": {
     "eslint-config-next": "^16.2.2",
     "next": "^16.2.2"
-  }
-  ,"overrides": {
+  },
+  "overrides": {
     "@xmldom/xmldom": "0.9.9",
-    "tar": "7.5.11"
+    "tar": "7.5.11",
+    "ajv": "^8.17.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   }
 }

@@ -125,11 +125,23 @@ export async function searchGoogle(
     let imageAttribution: string | undefined;
     const photoName = place.photos?.[0]?.name;
     if (photoName) {
-      // Photo media endpoint — no separate fetch needed, construct URL directly
-      imageUrl =
-        `https://places.googleapis.com/v1/${photoName}/media` +
-        `?maxWidthPx=1200&skipHttpRedirect=true&key=${key}`;
-      imageAttribution = "Photo via Google Places";
+      // Fetch the media endpoint with skipHttpRedirect=true to get the real
+      // image URL as JSON (photoUri), rather than storing a redirect URL.
+      try {
+        const photoApiUrl =
+          `https://places.googleapis.com/v1/${photoName}/media` +
+          `?maxWidthPx=1200&skipHttpRedirect=true&key=${key}`;
+        const photoRes = await fetch(photoApiUrl);
+        if (photoRes.ok) {
+          const photoData = (await photoRes.json()) as { photoUri?: string };
+          if (photoData.photoUri) {
+            imageUrl = photoData.photoUri;
+            imageAttribution = "Photo via Google Places";
+          }
+        }
+      } catch {
+        // photo failure is non-fatal — proceed without image
+      }
     }
 
     return {

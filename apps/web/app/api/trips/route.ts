@@ -15,6 +15,7 @@ const createTripSchema = z.object({
   travelStyle: z.enum(["cultural", "adventure", "relaxation", "foodie"]),
   groupType: z.enum(["solo", "couple", "family", "friends"]),
   pacing: z.enum(["relaxed", "moderate", "packed"]),
+  userNotes: z.string().max(500).optional(),
 });
 
 export async function GET() {
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
     travelStyle: parsed.data.travelStyle,
     groupType: parsed.data.groupType,
     pacing: parsed.data.pacing,
+    userNotes: parsed.data.userNotes ?? null,
   });
 
   // Fetch cover photo — bounded by 4 s so the response stays fast.

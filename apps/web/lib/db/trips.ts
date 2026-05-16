@@ -15,6 +15,7 @@ export type TripInsert = {
   travelStyle: string;
   groupType: string;
   pacing: string;
+  userNotes?: string | null;
 };
 
 export type TripUpdate = Partial<

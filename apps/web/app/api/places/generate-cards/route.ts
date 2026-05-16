@@ -18,7 +18,7 @@ const bodySchema = z.object({
   tripId: z.string().uuid(),
 });
 
-const MAX_CARDS = 8;
+const MAX_CARDS = 50;
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     .where(inArray(itineraryItems.dayId, dayIds));
 
   const candidates = allItems
-    .filter((item) => item.type === "activity");
+    .filter((item) => item.type === "activity" || item.type === "meal");
 
   if (candidates.length === 0) {
     return NextResponse.json({ generated: 0, cards: [] });
@@ -71,37 +71,43 @@ export async function POST(req: Request) {
       { status: 503 },
     );
 
-  const model = settings.find((s) => s.key === "model")?.value;
+  const model =
+    settings.find((s) => s.key === "model_place_card")?.value ??
+    settings.find((s) => s.key === "model")?.value;
+  const provider = settings.find((s) => s.key === "provider")?.value ?? "openrouter";
 
-  const generated: Awaited<ReturnType<typeof insertPlaceCard>>[] = [];
+  const tripCtx = {
+    destination: trip.destination,
+    country: trip.country,
+    lat: trip.lat,
+    long: trip.long,
+    travelStyle: trip.travelStyle,
+    groupType: trip.groupType,
+    budgetRange: trip.budgetRange,
+    id: tripId,
+  };
 
-  for (const item of candidates) {
-    if (generated.length >= MAX_CARDS) break;
-    const payload = await buildCardPayload(
-      { id: item.id, title: item.title, category: item.category, location: item.location },
-      {
-        destination: trip.destination,
-        country: trip.country,
-        lat: trip.lat,
-        long: trip.long,
-        travelStyle: trip.travelStyle,
-        groupType: trip.groupType,
-        budgetRange: trip.budgetRange,
-      },
-      promptRow.template,
-      model,
-    );
-
-    if (!payload || payload.verdict !== "worth_it") continue;
-
-    try {
+  const results = await Promise.allSettled(
+    candidates.map(async (item) => {
+      const payload = await buildCardPayload(
+        { id: item.id, title: item.title, category: item.category, location: item.location },
+        tripCtx,
+        promptRow.template,
+        model,
+        false,
+        session.user.id,
+        provider,
+      );
+      if (!payload || payload.verdict !== "worth_it") return null;
       const card = await insertPlaceCard({ ...payload, tripId });
       await linkItemToCard(item.id, card.id);
-      generated.push(card);
-    } catch {
-      continue;
-    }
-  }
+      return card;
+    }),
+  );
+
+  const generated = results
+    .flatMap((r) => (r.status === "fulfilled" && r.value != null ? [r.value] : []))
+    .slice(0, MAX_CARDS);
 
   return NextResponse.json({ generated: generated.length, cards: generated });
 }

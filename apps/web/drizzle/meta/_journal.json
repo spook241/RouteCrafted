@@ -50,6 +50,13 @@
       "when": 1778854142973,
       "tag": "0006_graceful_wendigo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778857944750,
+      "tag": "0007_eager_maestro",
+      "breakpoints": true
     }
   ]
 }
