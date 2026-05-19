@@ -4,7 +4,13 @@ import { TripForm } from "@/components/trips/TripForm";
 
 export const metadata = { title: "Plan a trip — RouteCrafted" };
 
-export default async function NewTripPage() {
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+export default async function NewTripPage({ searchParams }: Props) {
+  const sp = await searchParams;
+  const initialDestination = typeof sp.destination === 'string' ? sp.destination : '';
+  const initialCountry = typeof sp.country === 'string' ? sp.country : '';
+
   const session = await auth();
   if (!session) redirect("/login");
 
@@ -23,7 +29,7 @@ export default async function NewTripPage() {
                 Tell us about your trip and we&apos;ll craft a day-by-day itinerary.
               </p>
             </div>
-            <TripForm />
+            <TripForm initialDestination={initialDestination} initialCountry={initialCountry} />
           </div>
 
           {/* Right: illustration + tips */}

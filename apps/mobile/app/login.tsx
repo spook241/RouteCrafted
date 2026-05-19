@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   View,
   Text,
+  Image,
   TextInput,
   StyleSheet,
   KeyboardAvoidingView,
@@ -13,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/lib/auth";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Colors, Gradients, Radius, Spacing, Shadows, Typography } from "@/lib/theme";
+import logoPng from "../assets/logo.png";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -59,7 +61,7 @@ export default function LoginScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.logoMark}
           >
-            <Text style={styles.logoEmoji}>✈️</Text>
+            <Image source={logoPng} style={styles.logoImage} resizeMode="contain" />
           </LinearGradient>
           <Text style={styles.appName}>RouteCrafted</Text>
           <Text style={styles.tagline}>AI-powered travel itineraries</Text>
@@ -144,6 +146,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.sm,
+  },
+  logoImage: {
+    width: 40,
+    height: 40,
   },
   logoEmoji: {
     fontSize: 32,

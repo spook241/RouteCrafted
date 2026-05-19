@@ -11,9 +11,9 @@ export async function Header() {
         {/* Logo */}
         <Link
           href={session ? '/dashboard' : '/'}
-          className="font-headline font-extrabold text-xl text-on-surface tracking-tight flex-shrink-0"
+          className="flex items-center flex-shrink-0"
         >
-          RouteCrafted
+          <img src="/logo.svg" alt="RouteCrafted" className="h-12 w-auto" />
         </Link>
 
         {/* Center nav links (desktop only) */}

@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 interface Props {
   tripId: string;
   hasItinerary: boolean;
+  disabled?: boolean;
 }
 
-export function GeneratePlaceCardsButton({ tripId, hasItinerary }: Props) {
+export function GeneratePlaceCardsButton({ tripId, hasItinerary, disabled }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +47,8 @@ export function GeneratePlaceCardsButton({ tripId, hasItinerary }: Props) {
     <div className="flex flex-col items-start gap-1">
       <button
         onClick={handleGenerate}
-        disabled={loading}
-        className="inline-flex items-center gap-2 horizon-gradient hover:opacity-90 disabled:opacity-60 text-on-primary text-sm font-headline font-bold px-6 py-2.5 rounded-full transition"
+        disabled={loading || disabled}
+        className={`inline-flex items-center gap-2 horizon-gradient hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed text-on-primary text-sm font-headline font-bold px-6 py-2.5 rounded-full transition ${disabled ? 'hidden' : ''}`}
       >
         {loading ? (
           <>

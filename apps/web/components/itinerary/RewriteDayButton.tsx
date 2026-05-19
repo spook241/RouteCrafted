@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 interface RewriteDayButtonProps {
   tripId: string;
   dayId: string;
+  disabled?: boolean;
 }
 
-export function RewriteDayButton({ tripId, dayId }: RewriteDayButtonProps) {
+export function RewriteDayButton({ tripId, dayId, disabled }: RewriteDayButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +41,8 @@ export function RewriteDayButton({ tripId, dayId }: RewriteDayButtonProps) {
       {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
       <button
         onClick={handleRewrite}
-        disabled={loading}
-        className="inline-flex items-center gap-2 text-sm horizon-gradient hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-on-primary font-headline font-bold rounded-full px-6 py-2.5 transition"
+        disabled={loading || disabled}
+        className={`inline-flex items-center gap-2 text-sm horizon-gradient hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-on-primary font-headline font-bold rounded-full px-6 py-2.5 transition ${disabled ? 'hidden' : ''}`}
       >
         {loading ? (
           <>

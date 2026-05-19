@@ -10,12 +10,12 @@ const SELECT_CLASS =
   "w-full bg-surface-container-low rounded-2xl px-4 py-3 text-on-surface text-sm font-label focus:outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-xs font-label font-bold text-on-surface-variant mb-1.5 uppercase tracking-wider";
 
-export function TripForm() {
+export function TripForm({ initialDestination = "", initialCountry = "" }: { initialDestination?: string; initialCountry?: string; }) {
   const router = useRouter();
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
 
-  const [destination, setDestination] = useState("");
-  const [country, setCountry] = useState("");
+  const [destination, setDestination] = useState(initialDestination);
+  const [country, setCountry] = useState(initialCountry);
   const [lat, setLat] = useState<string | null>(null);
   const [long, setLong] = useState<string | null>(null);
 
@@ -114,6 +114,7 @@ export function TripForm() {
               fontFamily: "inherit",
             },
           }}
+          value={destination}
         />
         {destination && (
           <p className="mt-2 text-xs font-label text-primary flex items-center gap-1.5">

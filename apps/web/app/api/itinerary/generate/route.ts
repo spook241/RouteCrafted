@@ -239,7 +239,11 @@ export async function POST(req: Request) {
       send({ type: "step", step: "verdicts", status: "done" });
 
       // ── Step 6: finalise ────────────────────────────────────────
-      await updateTrip(tripId, session.user.id, { status: "active" });
+      const today = new Date();
+      const isPast = new Date(trip.endDate) < today;
+      const isFuture = new Date(trip.startDate) > today;
+      const newStatus = isPast ? "completed" : isFuture ? "planned" : "active";
+      await updateTrip(tripId, session.user.id, { status: newStatus });
       send({ type: "step", step: "finalise", status: "done" });
 
       send({ type: "complete", days: insertedDays.length, cards: cards.length });

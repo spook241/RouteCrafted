@@ -125,7 +125,7 @@ export default async function DayPage({ params }: Props) {
                   </div>
                 )}
               </div>
-              <RewriteDayButton tripId={id} dayId={day.id} />
+              <RewriteDayButton tripId={id} dayId={day.id} disabled={trip.status === "completed"} />
             </div>
 
             {/* Summary card */}

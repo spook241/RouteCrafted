@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, ne } from "drizzle-orm";
+import { eq, and, desc, lt, ne, lte, gte, gt } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { db } from "./index";
 import { trips } from "./schema";
@@ -71,15 +71,44 @@ export async function deleteTrip(id: string, userId: string) {
   return result[0] ?? null;
 }
 
-export async function markExpiredTripsCompleted(userId: string) {
+export async function syncTripStatuses(userId: string) {
+  // Update to 'completed'
   await db
     .update(trips)
     .set({ status: "completed", updatedAt: new Date() })
     .where(
       and(
         eq(trips.userId, userId),
-        lt(trips.endDate, sql`CURRENT_DATE`),
+        ne(trips.status, "draft"),
         ne(trips.status, "completed"),
+        lt(trips.endDate, sql`CURRENT_DATE`),
+      ),
+    );
+
+  // Update to 'active'
+  await db
+    .update(trips)
+    .set({ status: "active", updatedAt: new Date() })
+    .where(
+      and(
+        eq(trips.userId, userId),
+        ne(trips.status, "draft"),
+        ne(trips.status, "active"),
+        lte(trips.startDate, sql`CURRENT_DATE`),
+        gte(trips.endDate, sql`CURRENT_DATE`),
+      ),
+    );
+
+  // Update to 'planned'
+  await db
+    .update(trips)
+    .set({ status: "planned", updatedAt: new Date() })
+    .where(
+      and(
+        eq(trips.userId, userId),
+        ne(trips.status, "draft"),
+        ne(trips.status, "planned"),
+        gt(trips.startDate, sql`CURRENT_DATE`),
       ),
     );
 }

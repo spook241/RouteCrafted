@@ -62,11 +62,13 @@ export function PlaceCard({
   scheduledDay,
   scheduledTime,
   tripId,
+  isLocked,
 }: {
   card: PlaceCardData;
   scheduledDay?: number | null;
   scheduledTime?: string | null;
   tripId?: string;
+  isLocked?: boolean;
 }) {
   const router = useRouter();
   const [flagging, setFlagging] = useState(false);
@@ -235,19 +237,21 @@ export function PlaceCard({
               <span className="material-symbols-outlined text-[14px]">flag</span>
               Report inaccuracy
             </button>
-            <button
-              onClick={handleSwap}
-              disabled={swapping}
-              title="Swap for another activity"
-              className="ml-auto text-xs font-label text-on-surface-variant hover:text-primary transition flex items-center gap-1 disabled:opacity-50"
-            >
-              {swapping ? (
-                <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
-              ) : (
-                <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
-              )}
-              Swap
-            </button>
+            {!isLocked && (
+              <button
+                onClick={handleSwap}
+                disabled={swapping}
+                title="Swap for another activity"
+                className="ml-auto text-xs font-label text-on-surface-variant hover:text-primary transition flex items-center gap-1 disabled:opacity-50"
+              >
+                {swapping ? (
+                  <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
+                )}
+                Swap
+              </button>
+            )}
           </div>
         ) : (
           <div className="mt-1 space-y-2">

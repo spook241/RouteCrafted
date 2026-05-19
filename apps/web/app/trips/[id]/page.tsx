@@ -124,10 +124,10 @@ export default async function TripDetailPage({ params }: Props) {
             </div>
 
             {/* Cover image upload */}
-            <TripCoverUpload tripId={id} currentUrl={trip.coverImageUrl ?? null} />
+            <TripCoverUpload tripId={id} currentUrl={trip.coverImageUrl ?? null} isLocked={trip.status === "completed"} />
 
             {/* Weather Alerts */}
-            {alerts.length > 0 && (
+            {alerts.length > 0 && trip.status !== "completed" && (
               <div className="space-y-4">
                 {alerts.map((alert) => (
                   <WeatherAlertBanner
@@ -221,7 +221,7 @@ export default async function TripDetailPage({ params }: Props) {
                     </h2>
                     <p className="text-xs text-on-surface-variant mt-1">Worth It / Skip It verdicts for your activities</p>
                   </div>
-                  <GeneratePlaceCardsButton tripId={id} hasItinerary={days.length > 0} />
+                  <GeneratePlaceCardsButton tripId={id} hasItinerary={days.length > 0} disabled={trip.status === "completed"} />
                 </div>
                 {placeCards.length === 0 ? (
                   <p className="text-on-surface-variant text-sm text-center py-6">
@@ -236,6 +236,7 @@ export default async function TripDetailPage({ params }: Props) {
                         scheduledDay={card.scheduledDay}
                         scheduledTime={card.scheduledTime}
                         tripId={id}
+                        isLocked={trip.status === "completed"}
                       />
                     ))}
                   </div>

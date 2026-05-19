@@ -1,13 +1,21 @@
-import Link from 'next/link'
-import { auth } from '@/auth'
+import Link from 'next/link';
+import Image from 'next/image';
+import { auth } from '@/auth';
 
 export default async function Home() {
   const session = await auth()
   return (
     <div className="min-h-screen bg-surface">
       {/* ── Hero Section ── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+      <section className="relative overflow-hidden">
+        {/* Decorative background blobs */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none opacity-50 mix-blend-multiply dark:mix-blend-screen filter blur-3xl z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-primary/20 rounded-full mix-blend-multiply dark:mix-blend-screen blur-3xl animate-blob" />
+          <div className="absolute top-[20%] right-[-10%] w-[40rem] h-[40rem] bg-tertiary-fixed/30 rounded-full mix-blend-multiply dark:mix-blend-screen blur-3xl animate-blob animation-delay-2000" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
 
           {/* Left: Headline + Curator Tip */}
           <div className="lg:col-span-5 pt-4">
@@ -36,7 +44,7 @@ export default async function Home() {
             {/* Feature badges */}
             <div className="flex flex-wrap gap-3 mt-8">
               {['AI Itineraries', 'Weather Replanning', 'Worth It / Skip It'].map((f) => (
-                <span key={f} className="flex items-center gap-1.5 bg-surface-container rounded-full px-4 py-2 text-xs font-label font-semibold text-on-surface-variant">
+                <span key={f} className="flex items-center gap-1.5 bg-surface-container rounded-full px-4 py-2 text-xs font-label font-semibold text-on-surface-variant hover:-translate-y-0.5 hover:shadow-sm transition">
                   <span className="w-1.5 h-1.5 bg-primary rounded-full" />
                   {f}
                 </span>
@@ -146,9 +154,9 @@ export default async function Home() {
               </div>
             </div>
           </div>
-
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* ── Trending Destinations ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
@@ -164,40 +172,44 @@ export default async function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Tokyo — wide */}
-          <div className="md:col-span-8 relative h-72 rounded-3xl overflow-hidden bg-surface-container-high group cursor-pointer">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <Link href="/trips/new?destination=Tokyo&country=Japan" className="md:col-span-8 relative h-72 rounded-3xl overflow-hidden bg-surface-container-high group cursor-pointer block">
+            <Image src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?q=80&w=1994&auto=format&fit=crop" alt="Tokyo" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
             <span className="absolute top-5 left-5 bg-tertiary-fixed text-on-tertiary-fixed text-xs font-label font-bold px-3 py-1 rounded-full">Trending</span>
             <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-3xl">Tokyo</p>
-              <p className="text-white/70 text-sm mt-1">Japan · Best in Spring</p>
+              <p className="text-white font-headline font-extrabold text-3xl drop-shadow-sm">Tokyo</p>
+              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">Japan · Best in Spring</p>
             </div>
-            <span className="absolute bottom-6 right-6 material-symbols-outlined text-white/60 text-[48px] group-hover:text-white/80 transition">arrow_outward</span>
-          </div>
+            <span className="absolute bottom-6 right-6 material-symbols-outlined text-white/60 text-[48px] group-hover:text-white/90 group-hover:-translate-y-1 transition drop-shadow-sm">arrow_outward</span>
+          </Link>
           {/* Paris — narrow */}
-          <div className="md:col-span-4 relative h-72 rounded-3xl overflow-hidden bg-surface-container group cursor-pointer">
+          <Link href="/trips/new?destination=Paris&country=France" className="md:col-span-4 relative h-72 rounded-3xl overflow-hidden bg-surface-container group cursor-pointer block">
+            <Image src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop" alt="Paris" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-2xl">Paris</p>
-              <p className="text-white/70 text-sm mt-1">France · Year-round</p>
+              <p className="text-white font-headline font-extrabold text-2xl drop-shadow-sm">Paris</p>
+              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">France · Year-round</p>
             </div>
-          </div>
+          </Link>
           {/* New York — narrow */}
-          <div className="md:col-span-4 relative h-64 rounded-3xl overflow-hidden bg-surface-container-highest group cursor-pointer">
+          <Link href="/trips/new?destination=New%20York&country=USA" className="md:col-span-4 relative h-64 rounded-3xl overflow-hidden bg-surface-container-highest group cursor-pointer block">
+            <Image src="https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=2070&auto=format&fit=crop" alt="New York" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-2xl">New York</p>
-              <p className="text-white/70 text-sm mt-1">USA · All seasons</p>
+              <p className="text-white font-headline font-extrabold text-2xl drop-shadow-sm">New York</p>
+              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">USA · All seasons</p>
             </div>
-          </div>
+          </Link>
           {/* Amalfi — wide */}
-          <div className="md:col-span-8 relative h-64 rounded-3xl overflow-hidden bg-surface-container-high group cursor-pointer">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <span className="absolute top-5 left-5 bg-tertiary-fixed text-on-tertiary-fixed text-xs font-label font-bold px-3 py-1 rounded-full">Editor's pick</span>
+          <Link href="/trips/new?destination=Amalfi%20Coast&country=Italy" className="md:col-span-8 relative h-64 rounded-3xl overflow-hidden bg-surface-container-high group cursor-pointer block">
+            <Image src="https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?q=80&w=1976&auto=format&fit=crop" alt="Amalfi Coast" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
+            <span className="absolute top-5 left-5 bg-primary-container text-on-primary-container text-xs font-label font-bold px-3 py-1 rounded-full">Editor's pick</span>
             <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-2xl">Amalfi Coast</p>
-              <p className="text-white/70 text-sm mt-1">Italy · Best May–Oct</p>
+              <p className="text-white font-headline font-extrabold text-2xl drop-shadow-sm">Amalfi Coast</p>
+              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">Italy · Best May–Oct</p>
             </div>
-          </div>
+          </Link>
         </div>
       </section>
 
