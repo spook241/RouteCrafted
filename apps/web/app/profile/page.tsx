@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getUserByEmail } from "@/lib/db/users";
 import { ProfileForm } from "@/components/auth/ProfileForm";
 import { AvatarUpload } from "@/components/auth/AvatarUpload";
+import { PasswordChangeForm } from "@/components/auth/PasswordChangeForm";
 
 export const metadata = { title: "Profile — RouteCrafted" };
 
@@ -57,12 +58,12 @@ export default async function ProfilePage() {
               <ProfileForm initialName={user.name ?? ""} />
             </div>
 
-            <div className="bg-surface-container-low rounded-3xl p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined text-[18px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
-                <p className="text-xs font-label font-bold text-primary uppercase tracking-wider">Security</p>
-              </div>
-              <p className="text-sm text-on-surface-variant">Password changes and 2FA are managed through your OAuth provider (Google).</p>
+            <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-card">
+              <h3 className="font-headline font-bold text-on-surface text-lg mb-6 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
+                Security
+              </h3>
+              <PasswordChangeForm />
             </div>
           </div>
         </div>

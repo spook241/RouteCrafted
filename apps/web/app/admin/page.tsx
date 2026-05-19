@@ -66,6 +66,18 @@ export default async function AdminPage() {
             </div>
           </Link>
 
+          <Link href="/admin/homepage" className="group block">
+            <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-card hover:shadow-card-hover transition-shadow">
+              <span className="material-symbols-outlined text-primary text-[32px] mb-3 block" style={{ fontVariationSettings: "'FILL' 1" }}>edit_document</span>
+              <h2 className="font-headline font-bold text-on-surface text-lg group-hover:text-primary transition-colors">
+                Content Management
+              </h2>
+              <p className="text-on-surface-variant text-sm mt-1">
+                Edit the homepage copy, feature badges, and dynamic destinations.
+              </p>
+            </div>
+          </Link>
+
           <Link href="/admin/users" className="group block">
             <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-card hover:shadow-card-hover transition-shadow">
               <span className="material-symbols-outlined text-primary text-[32px] mb-3 block" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>

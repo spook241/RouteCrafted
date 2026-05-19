@@ -32,6 +32,16 @@ export async function updateUser(
   return rows[0] ?? null;
 }
 
+export async function updateUserPassword(id: string, passwordHash: string) {
+  const rows = await db
+    .update(users)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(users.id, id))
+    .returning();
+  return rows[0] ?? null;
+}
+
+
 // ─── Admin helpers ────────────────────────────────────────────────────────────
 
 export async function getAllUsers(page = 1, limit = 20) {

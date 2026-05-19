@@ -1,9 +1,86 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { auth } from '@/auth';
+import { getSetting } from '@/lib/db/ai-config';
 
 export default async function Home() {
-  const session = await auth()
+  const session = await auth();
+  const [
+    trendingSetting,
+    destSetting,
+    headlineSetting,
+    subheadlineSetting,
+    curatorTipSetting,
+    ctaSetting,
+    badgesSetting
+  ] = await Promise.all([
+    getSetting('trending_caption'),
+    getSetting('trending_destinations'),
+    getSetting('hero_headline'),
+    getSetting('hero_subheadline'),
+    getSetting('curator_tip_text'),
+    getSetting('cta_text'),
+    getSetting('feature_badges')
+  ]);
+
+  const trendingCaption = trendingSetting?.value || 'Trending right now';
+  const heroHeadline = headlineSetting?.value || 'Where to next?';
+  const heroSubheadline = subheadlineSetting?.value || 'AI-powered day-by-day travel plans with weather-aware replanning and Worth It / Skip It place cards.';
+  const curatorTipText = curatorTipSetting?.value || 'The best itineraries balance structured highlights with free exploration time. Let AI plan the must-sees — then leave afternoons open for wandering.';
+  const ctaText = ctaSetting?.value || 'Craft my itinerary';
+  const featureBadges = badgesSetting?.value ? JSON.parse(badgesSetting.value) : ['AI Itineraries', 'Weather Replanning', 'Worth It / Skip It'];
+
+  // Parse headline to italicize the last word
+  const headlineWords = heroHeadline.trim().split(' ');
+  const lastWord = headlineWords.pop();
+  const firstPart = headlineWords.join(' ');
+
+  let trendingDestinations = [];
+  try {
+    if (destSetting?.value) {
+      trendingDestinations = JSON.parse(destSetting.value);
+    }
+  } catch (e) {
+    console.error("Failed to parse trending destinations", e);
+  }
+
+  if (!trendingDestinations || trendingDestinations.length === 0) {
+    trendingDestinations = [
+      {
+        id: "default-1",
+        destination: "Tokyo",
+        country: "Japan",
+        imageUrl: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?q=80&w=1994&auto=format&fit=crop",
+        tagline: "Japan · Best in Spring",
+        span: "wide"
+      },
+      {
+        id: "default-2",
+        destination: "Paris",
+        country: "France",
+        imageUrl: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop",
+        tagline: "France · Year-round",
+        span: "narrow"
+      },
+      {
+        id: "default-3",
+        destination: "New York",
+        country: "USA",
+        imageUrl: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=2070&auto=format&fit=crop",
+        tagline: "USA · All seasons",
+        span: "narrow"
+      },
+      {
+        id: "default-4",
+        destination: "Amalfi Coast",
+        country: "Italy",
+        imageUrl: "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?q=80&w=1976&auto=format&fit=crop",
+        tagline: "Italy · Summer escape",
+        span: "wide"
+      }
+    ];
+  }
+
   return (
     <div className="min-h-screen bg-surface">
       {/* ── Hero Section ── */}
@@ -23,11 +100,11 @@ export default async function Home() {
               AI Travel Planning
             </p>
             <h1 className="font-headline font-extrabold text-5xl md:text-7xl text-on-surface leading-[1.08] tracking-tight mb-6">
-              Where to{' '}
-              <span className="italic text-primary">next?</span>
+              {firstPart ? `${firstPart} ` : ''}
+              {lastWord && <span className="italic text-primary">{lastWord}</span>}
             </h1>
             <p className="text-on-surface-variant text-lg leading-relaxed mb-10 max-w-md">
-              AI-powered day-by-day travel plans with weather-aware replanning and Worth&nbsp;It&nbsp;/&nbsp;Skip&nbsp;It place cards.
+              {heroSubheadline}
             </p>
 
             {/* Curator's Tip card */}
@@ -37,14 +114,14 @@ export default async function Home() {
                 <p className="text-xs font-label font-bold text-primary uppercase tracking-wider">Curator's Tip</p>
               </div>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                The best itineraries balance structured highlights with free exploration time. Let AI plan the must-sees — then leave afternoons open for wandering.
+                {curatorTipText}
               </p>
             </div>
 
             {/* Feature badges */}
             <div className="flex flex-wrap gap-3 mt-8">
-              {['AI Itineraries', 'Weather Replanning', 'Worth It / Skip It'].map((f) => (
-                <span key={f} className="flex items-center gap-1.5 bg-surface-container rounded-full px-4 py-2 text-xs font-label font-semibold text-on-surface-variant hover:-translate-y-0.5 hover:shadow-sm transition">
+              {featureBadges.map((f: string) => (
+                <span key={f} className="flex items-center gap-1.5 bg-surface-container rounded-full px-4 py-2 text-xs font-label font-semibold text-on-surface-variant hover:-translate-y-1 hover:shadow-sm transition">
                   <span className="w-1.5 h-1.5 bg-primary rounded-full" />
                   {f}
                 </span>
@@ -149,7 +226,7 @@ export default async function Home() {
                   className="flex items-center justify-center gap-3 w-full horizon-gradient text-on-primary font-headline font-bold text-lg py-5 rounded-full shadow-card hover:opacity-90 transition mt-2"
                 >
                   <span className="material-symbols-outlined text-[22px]">auto_awesome</span>
-                  Craft my itinerary
+                  {ctaText}
                 </Link>
               </div>
             </div>
@@ -163,7 +240,18 @@ export default async function Home() {
         <div className="flex items-end justify-between mb-8">
           <div>
             <p className="text-primary font-label font-bold text-xs uppercase tracking-widest mb-2">Destinations</p>
-            <h2 className="font-headline font-extrabold text-3xl text-on-surface">Trending right now</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="font-headline font-extrabold text-3xl text-on-surface">{trendingCaption}</h2>
+              {session?.user?.role === 'admin' && (
+                <Link
+                  href="/admin/trending-caption"
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-surface-container-high text-on-surface hover:bg-primary/10 hover:text-primary transition-colors"
+                  title="Edit Caption"
+                >
+                  <span className="material-symbols-outlined text-[16px]">edit</span>
+                </Link>
+              )}
+            </div>
           </div>
           <Link href="/trips/new" className="text-sm font-semibold text-primary hover:text-primary-container transition">
             View all →
@@ -171,45 +259,51 @@ export default async function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-          {/* Tokyo — wide */}
-          <Link href="/trips/new?destination=Tokyo&country=Japan" className="md:col-span-8 relative h-72 rounded-3xl overflow-hidden bg-surface-container-high group cursor-pointer block">
-            <Image src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?q=80&w=1994&auto=format&fit=crop" alt="Tokyo" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
-            <span className="absolute top-5 left-5 bg-tertiary-fixed text-on-tertiary-fixed text-xs font-label font-bold px-3 py-1 rounded-full">Trending</span>
-            <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-3xl drop-shadow-sm">Tokyo</p>
-              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">Japan · Best in Spring</p>
-            </div>
-            <span className="absolute bottom-6 right-6 material-symbols-outlined text-white/60 text-[48px] group-hover:text-white/90 group-hover:-translate-y-1 transition drop-shadow-sm">arrow_outward</span>
-          </Link>
-          {/* Paris — narrow */}
-          <Link href="/trips/new?destination=Paris&country=France" className="md:col-span-4 relative h-72 rounded-3xl overflow-hidden bg-surface-container group cursor-pointer block">
-            <Image src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop" alt="Paris" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-2xl drop-shadow-sm">Paris</p>
-              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">France · Year-round</p>
-            </div>
-          </Link>
-          {/* New York — narrow */}
-          <Link href="/trips/new?destination=New%20York&country=USA" className="md:col-span-4 relative h-64 rounded-3xl overflow-hidden bg-surface-container-highest group cursor-pointer block">
-            <Image src="https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=2070&auto=format&fit=crop" alt="New York" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-2xl drop-shadow-sm">New York</p>
-              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">USA · All seasons</p>
-            </div>
-          </Link>
-          {/* Amalfi — wide */}
-          <Link href="/trips/new?destination=Amalfi%20Coast&country=Italy" className="md:col-span-8 relative h-64 rounded-3xl overflow-hidden bg-surface-container-high group cursor-pointer block">
-            <Image src="https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?q=80&w=1976&auto=format&fit=crop" alt="Amalfi Coast" fill className="object-cover group-hover:scale-105 transition-transform duration-700" unoptimized />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
-            <span className="absolute top-5 left-5 bg-primary-container text-on-primary-container text-xs font-label font-bold px-3 py-1 rounded-full">Editor's pick</span>
-            <div className="absolute bottom-6 left-6">
-              <p className="text-white font-headline font-extrabold text-2xl drop-shadow-sm">Amalfi Coast</p>
-              <p className="text-white/80 text-sm mt-1 drop-shadow-sm">Italy · Best May–Oct</p>
-            </div>
-          </Link>
+          {trendingDestinations.map((dest: any, i: number) => {
+            const isWide = dest.span === 'wide';
+            const colClass = isWide ? 'md:col-span-8' : 'md:col-span-4';
+            const isFirst = i === 0;
+            
+            return (
+              <Link 
+                key={dest.id || i}
+                href={`/trips/new?destination=${encodeURIComponent(dest.destination)}&country=${encodeURIComponent(dest.country)}`} 
+                className={`${colClass} relative ${isWide || isFirst ? 'h-72' : 'h-64'} rounded-3xl overflow-hidden bg-surface-container-high group cursor-pointer block`}
+              >
+                <Image 
+                  src={dest.imageUrl} 
+                  alt={dest.destination} 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform duration-700" 
+                  unoptimized 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
+                
+                {/* Optional "Trending" badge for the first card to mimic original design */}
+                {isFirst && (
+                  <span className="absolute top-5 left-5 bg-tertiary-fixed text-on-tertiary-fixed text-xs font-label font-bold px-3 py-1 rounded-full">
+                    Trending
+                  </span>
+                )}
+                
+                <div className="absolute bottom-6 left-6">
+                  <p className="text-white font-headline font-extrabold text-3xl drop-shadow-sm">
+                    {dest.destination}
+                  </p>
+                  <p className="text-white/80 text-sm mt-1 drop-shadow-sm">
+                    {dest.tagline}
+                  </p>
+                </div>
+                
+                {/* Arrow icon for wide cards */}
+                {isWide && (
+                  <span className="absolute bottom-6 right-6 material-symbols-outlined text-white/60 text-[48px] group-hover:text-white/90 group-hover:-translate-y-1 transition drop-shadow-sm">
+                    arrow_outward
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
