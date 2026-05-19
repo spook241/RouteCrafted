@@ -43,7 +43,15 @@ export async function apiFetch<T = unknown>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  const url = `${BASE_URL}${path}`;
+  if (Platform.OS === "web") {
+    const method = (options.method ?? "GET").toString();
+    // Log request for debugging in browser devtools
+    // eslint-disable-next-line no-console
+    console.log("[apiFetch]", method, url, headers);
+  }
+
+  const res = await fetch(url, { ...options, headers });
 
   if (!res.ok) {
     const text = await res.text().catch(() => `HTTP ${res.status}`);
