@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/lib/auth";
 import { GradientButton } from "@/components/ui/GradientButton";
@@ -29,6 +30,8 @@ export default function LoginScreen() {
     setError(null);
     try {
       await login(email.trim(), password);
+      // Navigate to main app after successful login
+      router.replace("/");
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Login failed. Check your credentials."
