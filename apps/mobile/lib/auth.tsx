@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { getToken } = await import("./api");
         const saved = await getToken();
+        console.log("[Auth] restored token:", saved);
         if (saved) {
           setTokenState(saved);
           const profile = await apiFetch<MobileUser>("/api/mobile/profile");
@@ -56,7 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       }
     );
+    console.log("[Auth] login response:", data);
     await setToken(data.token);
+    console.log("[Auth] token stored");
     setTokenState(data.token);
     setUser(data.user);
   }
