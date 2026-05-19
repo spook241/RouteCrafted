@@ -2,7 +2,10 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 const TOKEN_KEY = "mobile_token";
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+if (!BASE_URL) {
+  throw new Error("EXPO_PUBLIC_API_URL environment variable is not set. Please configure it in your environment.");
+}
 
 export async function getToken(): Promise<string | null> {
   if (Platform.OS === "web") {
